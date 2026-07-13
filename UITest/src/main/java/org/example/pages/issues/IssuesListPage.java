@@ -17,7 +17,7 @@ public class IssuesListPage extends BasePage<IssuesListPage> {
   private SelenideElement searchInput;
   @FindBy(xpath = "//div[@data-test='toolbar-search']//button[@data-test='search-button']")
   private SelenideElement searchButton;
-  @FindBy(xpath = "//a[@data-test='createIssueButton']")
+  @FindBy(xpath = "//*[@data-test='createIssueButton']")
   private SelenideElement newIssueButton;
   @FindBy(xpath = "//th[@data-test='ring-table-header-cell id']//div[contains(@class, 'wrapper') and contains(text(), 'ID')]")
   private SelenideElement idSortedButton;
@@ -35,7 +35,7 @@ public class IssuesListPage extends BasePage<IssuesListPage> {
     return this;
   }
 
-  public IssueDetailsPage searchById(String query) {
+  public IssueDetailsPage openById(String query) {
     searchInput.setValue(query);
     searchButton.shouldBe(Condition.visible).click();
     return new IssueDetailsPage();

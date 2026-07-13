@@ -1,6 +1,7 @@
 package org.example.pages.issues;
 
 import com.codeborne.selenide.Condition;
+import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import org.example.components.CommentSection;
 import org.example.components.NavigationBar;
@@ -8,7 +9,7 @@ import org.example.pages.BasePage;
 import org.example.pages.agile.AgileBoardPage;
 import org.openqa.selenium.support.FindBy;
 
-import static com.codeborne.selenide.Selenide.executeJavaScript;
+import static com.codeborne.selenide.Selenide.*;
 
 public class IssueDetailsPage extends BasePage<IssueDetailsPage> {
   private final NavigationBar nav = new NavigationBar();
@@ -30,6 +31,12 @@ public class IssueDetailsPage extends BasePage<IssueDetailsPage> {
   private SelenideElement textareaForDescription;
   @FindBy(xpath = "//button[@data-test='save-button']")
   private SelenideElement saveButton;
+  @FindBy(xpath = "(//div[@data-test='fields-sidebar']//div[@data-test='field'])[3]//button[@role='combobox']")
+  private SelenideElement executorChoice;
+  @FindBy(xpath = "(//div[@data-test='fields-sidebar']//div[@data-test='field'])[4]//button[@role='combobox']")
+  private SelenideElement stageChoice;
+  @FindBy(xpath = "//input[@data-test-custom='ring-select-popup-filter-input']")
+  private SelenideElement stageFilterInput;
 
   @Override
   public IssueDetailsPage waitForPageLoaded() {
@@ -69,6 +76,23 @@ public class IssueDetailsPage extends BasePage<IssueDetailsPage> {
 
   public IssueDetailsPage findComment(String text) {
     comment.checkCommentExists(text);
+    return this;
+  }
+
+  public IssueDetailsPage choiceExecutor(String login) {
+    executorChoice.shouldBe(Condition.visible).click();
+    String xpath = String.format("//span[@data-test='ring-list-item-custom ring-list-item-action ring-list-item']" +
+            "[.//span[@data-test='list-item-login' and text()='%s']]", login);
+    $x(xpath).shouldBe(Condition.visible).click();
+    return this;
+  }
+
+  public IssueDetailsPage choiceStage(String stage) {
+    stageChoice.shouldBe(Condition.visible).click();
+    stageFilterInput.shouldBe(Condition.visible).setValue(stage);
+    String xpath = String.format("//div[@data-test='ring-popup']" +
+        "//button[.//span[@data-test='ring-list-item-label' and text()='%s']]", stage);
+    $x(xpath).shouldBe(Condition.visible).click();
     return this;
   }
 

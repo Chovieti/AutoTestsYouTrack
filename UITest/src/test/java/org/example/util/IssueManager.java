@@ -11,9 +11,8 @@ public class IssueManager {
     LoginPage loginPage = new LoginPage();
     loginPage.openPage(baseUrl);
     loginPage.waitForPageLoaded();
-    MainPage mainPage = loginPage.login(username, password);
-    IssuesListPage issuesPage = mainPage.goToIssues();
-    issuesPage.waitForPageLoaded();
+    MainPage mainPage = loginPage.login(username, password).waitForPageLoaded();
+    IssuesListPage issuesPage = mainPage.goToIssues().waitForPageLoaded();
     CreateIssueDialog createIssue = issuesPage.openCreateIssueDialog();
     createIssue.setTitle(title);
     String id = createIssue.create();
@@ -26,7 +25,7 @@ public class IssueManager {
     mainPage.waitForPageLoaded();
     IssuesListPage issuesPage = mainPage.goToIssues();
     issuesPage.waitForPageLoaded();
-    IssueDetailsPage issueDetails = issuesPage.searchById(id);
+    IssueDetailsPage issueDetails = issuesPage.openById(id);
     issueDetails.waitForPageLoaded();
     issueDetails.deleteIssue();
   }

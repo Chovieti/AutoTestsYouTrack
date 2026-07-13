@@ -1,5 +1,6 @@
 package org.example.pages.agile;
 
+import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import org.example.components.NavigationBar;
 import org.example.pages.BasePage;

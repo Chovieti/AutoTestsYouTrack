@@ -16,11 +16,11 @@ public class NavigationBar {
   }
 
   public void clickIssues() {
-    issuesLink.click();
+    issuesLink.shouldBe(Condition.visible).click();
   }
 
   public void clickAgileBoard() {
-    agileBoardLink.click();
+    agileBoardLink.shouldBe(Condition.visible).click();
   }
 
   public void shouldBeVisible() {
