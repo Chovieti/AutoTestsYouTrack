@@ -13,6 +13,7 @@ public class TestConfig {
       if (input == null) {
         throw new RuntimeException("config.properties not found in classpath");
       }
+      properties.load(input);
     } catch (IOException e) {
       throw new RuntimeException("Failed to load config.properties", e);
     }

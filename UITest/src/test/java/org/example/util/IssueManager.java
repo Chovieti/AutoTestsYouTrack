@@ -18,6 +18,18 @@ public class IssueManager {
     String id = createIssue.create();
     return id;
   }
+  public static String createIssue(String title, String description, String baseUrl, String username, String password) {
+    LoginPage loginPage = new LoginPage();
+    loginPage.openPage(baseUrl);
+    loginPage.waitForPageLoaded();
+    MainPage mainPage = loginPage.login(username, password).waitForPageLoaded();
+    IssuesListPage issuesPage = mainPage.goToIssues().waitForPageLoaded();
+    CreateIssueDialog createIssue = issuesPage.openCreateIssueDialog();
+    createIssue.setTitle(title);
+    createIssue.setDescription(description);
+    String id = createIssue.create();
+    return id;
+  }
 
   public static void deleteIssue(String id, String baseUrl) {
     MainPage mainPage = new MainPage();

@@ -13,6 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
 
 public class GeneralTests {
   private static final String BASE_URL = TestConfig.getBaseUrl();
@@ -37,6 +39,10 @@ public class GeneralTests {
     Selenide.closeWebDriver();
   }
 
+  private String uniqueTitle(String base) {
+    return base + " " + System.currentTimeMillis();
+  }
+
   @Test
   @DisplayName("Проверка корректного логина")
   public void testSuccessfulLogin() {
@@ -47,11 +53,11 @@ public class GeneralTests {
     mainPage.waitForPageLoaded();
   }
 
-  @Test
-  @DisplayName("Проверка создания задачи")
-  public void testCreateIssue() {
-    String title = "Тестовое создание задачи";
-    String id = IssueManager.createIssue(title, BASE_URL, USERNAME, PASSWORD);
+  @ParameterizedTest(name = "Проверка создания задачи с заголовком {0}")
+  @CsvFileSource(resources = "/csv-data/create-issue-data.csv", numLinesToSkip = 0)
+  public void testCreateIssue(String title, String description) {
+    String realTitle = uniqueTitle(title);
+    String id = IssueManager.createIssue(realTitle, description, BASE_URL, USERNAME, PASSWORD);
 
     MainPage mainPage = new MainPage()
         .openPage(BASE_URL)
@@ -59,10 +65,11 @@ public class GeneralTests {
     IssuesListPage issuesPage = mainPage
         .goToIssues()
         .waitForPageLoaded();
-    issuesPage.getIssueRowByTitle(title).shouldBe(Condition.visible);
+    issuesPage.getIssueRowByTitle(realTitle).shouldBe(Condition.visible);
 
     IssueManager.deleteIssue(id, BASE_URL);
   }
+
   @Test
   @DisplayName("Проверка удаления задачи")
   public void testDeleteIssue() {
@@ -81,11 +88,11 @@ public class GeneralTests {
     issuesPage.getIssueRowByTitle(title).shouldBe(Condition.not(Condition.visible));
   }
 
-  @Test
-  @DisplayName("Проверка изменения имени/описания задачи")
-  public void testEditIssue() {
-    String title = "Тестовая задача для изменения";
-    String id = IssueManager.createIssue(title, BASE_URL, USERNAME, PASSWORD);
+  @ParameterizedTest(name = "Проверка изменения имени задачи {0} -> {1} и изменения описания")
+  @CsvFileSource(resources = "/csv-data/edit-issue-data.csv", numLinesToSkip = 0)
+  public void testEditIssue(String oldTitle, String newTitle, String newDescription) {
+    String realTitle = uniqueTitle(oldTitle);
+    String id = IssueManager.createIssue(realTitle, BASE_URL, USERNAME, PASSWORD);
 
     MainPage mainPage = new MainPage()
         .openPage(BASE_URL)
@@ -93,10 +100,8 @@ public class GeneralTests {
     IssuesListPage issuesPage = mainPage
         .goToIssues()
         .waitForPageLoaded();
-    issuesPage.getIssueRowByTitle(title).shouldBe(Condition.visible);
+    issuesPage.getIssueRowByTitle(realTitle).shouldBe(Condition.visible);
     IssueDetailsPage issueDetails = issuesPage.openById(id);
-    String newTitle = "Изменненное название";
-    String newDescription = "Какое-то описание";
     issueDetails.editIssue(newTitle, newDescription);
     IssueManager.deleteIssue(id, BASE_URL);
   }
@@ -140,11 +145,12 @@ public class GeneralTests {
     IssueManager.deleteIssue(id, BASE_URL);
   }
 
-  @Test
-  @DisplayName("Проверка изменения статуса задачи")
-  public void testIssueStageChange() {
+  @ParameterizedTest(name = "Проверка изменения статус задачи на {0}")
+  @CsvFileSource(resources = "/csv-data/issue-stage-data.csv", numLinesToSkip = 0)
+  public void testIssueStageChange(String stage) {
     String title = "Тестовая задача для изменения";
-    String id = IssueManager.createIssue(title, BASE_URL, USERNAME, PASSWORD);
+    String realTitle = uniqueTitle(title);
+    String id = IssueManager.createIssue(realTitle, BASE_URL, USERNAME, PASSWORD);
 
     MainPage mainPage = new MainPage()
         .openPage(BASE_URL)
@@ -152,10 +158,9 @@ public class GeneralTests {
     IssuesListPage issuesPage = mainPage
         .goToIssues()
         .waitForPageLoaded();
-    issuesPage.getIssueRowByTitle(title).shouldBe(Condition.visible);
+    issuesPage.getIssueRowByTitle(realTitle).shouldBe(Condition.visible);
     IssueDetailsPage issueDetailsPage = issuesPage.openById(id);
-    // TODO Заменить текст стадии на параметр передаваемый внешне
-    issueDetailsPage.choiceStage("Тест");
+    issueDetailsPage.choiceStage(stage);
 
     IssueManager.deleteIssue(id, BASE_URL);
   }
