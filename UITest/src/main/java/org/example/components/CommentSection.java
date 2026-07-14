@@ -9,11 +9,11 @@ import static com.codeborne.selenide.Selenide.$x;
 
 public class CommentSection {
   @FindBy(xpath = "//div[@data-test='wysiwyg-editor']//div[@contenteditable='true']")
-  private SelenideElement commentInput;
+  private SelenideElement commentInput;// = $x("//div[@data-test='wysiwyg-editor']//div[@contenteditable='true']");
   @FindBy(xpath = "//div[@data-test='editor-actions']//button[@data-test='post-comment']")
-  private SelenideElement commentPostButton;
+  private SelenideElement commentPostButton;// = $x("//div[@data-test='editor-actions']//button[@data-test='post-comment']");
   @FindBy(xpath = "//div[@data-test='ring-popup']//button[contains(@id, ':remove')]")
-  private SelenideElement commentRemove;
+  private SelenideElement commentRemove;// = $x("//div[@data-test='ring-popup']//button[contains(@id, ':remove')]");
 
   public CommentSection() {
     Selenide.page(this);
@@ -22,6 +22,11 @@ public class CommentSection {
   public CommentSection addComment(String text) {
     commentInput.setValue(text);
     commentPostButton.click();
+    String xpathOfNewComment = String.format(
+        "//div[@data-test='change-item'][.//div[@data-test='comment-content']//*[contains(text(),'%s')]]",
+        text
+    );
+    $x(xpathOfNewComment).shouldBe(Condition.visible);
     return this;
   }
 
@@ -36,13 +41,18 @@ public class CommentSection {
     return this;
   }
 
-  public void checkCommentExists(String commentText) {
+  public boolean checkCommentExists(String commentText) {
     String xpath = String.format(
         "//div[@data-test='change-item'][.//div[@data-test='comment-content']"
             + "//*[contains(text(),'%s')]]",
         commentText
     );
-    SelenideElement comment = $x(xpath).shouldBe(Condition.visible);
+    try {
+      $x(xpath).shouldBe(Condition.visible);
+    } catch (AssertionError e) {
+      return false;
+    }
+    return true;
   }
 
   public void deleteComment(String commentText) {

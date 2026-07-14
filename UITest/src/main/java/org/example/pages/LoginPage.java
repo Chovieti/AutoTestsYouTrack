@@ -4,20 +4,19 @@ import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
 import org.openqa.selenium.support.FindBy;
 
-import static com.codeborne.selenide.Selenide.open;
-import static com.codeborne.selenide.Selenide.switchTo;
+import static com.codeborne.selenide.Selenide.*;
 
 public class LoginPage extends BasePage<LoginPage> {
-  @FindBy(xpath = "//button[@data-test='ring-link login-button']")
-  private SelenideElement loginButton;
-  @FindBy(xpath = "//iframe[@title='Login dialog']")
-  private SelenideElement loginFrame;
-  @FindBy(xpath = "//input[@data-test='username-field']")
-  private SelenideElement usernameInput;
-  @FindBy(xpath = "//input[@data-test='password-field']")
-  private SelenideElement passwordInput;
-  @FindBy(xpath = "//button[@data-test='login-button']")
-  private SelenideElement submitButton;
+//  @FindBy(xpath = "//button[@data-test='ring-link login-button']")
+  private SelenideElement loginButton = $x("//button[@data-test='ring-link login-button']");
+//  @FindBy(xpath = "//iframe[@title='Login dialog']")
+  private SelenideElement loginFrame = $x("//iframe[@title='Login dialog']");
+//  @FindBy(xpath = "//input[@data-test='username-field']")
+  private SelenideElement usernameInput = $x("//input[@data-test='username-field']");
+//  @FindBy(xpath = "//input[@data-test='password-field']")
+  private SelenideElement passwordInput = $x("//input[@data-test='password-field']");
+//  @FindBy(xpath = "//button[@data-test='login-button']")
+  private SelenideElement submitButton = $x("//button[@data-test='login-button']");
 
   @Override
   public LoginPage waitForPageLoaded() {
@@ -37,6 +36,7 @@ public class LoginPage extends BasePage<LoginPage> {
     passwordInput.setValue(password);
     submitButton.click();
     switchTo().defaultContent();
+    loginButton.shouldNotBe(Condition.visible);
     return new MainPage();
   }
 }
