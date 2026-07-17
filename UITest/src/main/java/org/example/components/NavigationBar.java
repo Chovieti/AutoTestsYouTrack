@@ -5,13 +5,11 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import org.openqa.selenium.support.FindBy;
 
-import static com.codeborne.selenide.Selenide.$x;
-
 public class NavigationBar {
-//  @FindBy(xpath = "//a[@data-test='ring-link issues-button']")
-  private SelenideElement issuesLink = $x("//a[@data-test='ring-link issues-button']");
-//  @FindBy(xpath = "//a[@data-test='ring-link agile-boards-button']")
-  private SelenideElement agileBoardLink = $x("//a[@data-test='ring-link agile-boards-button']");
+  @FindBy(xpath = "//a[@data-test='ring-link issues-button']")
+  private SelenideElement issuesLink;
+  @FindBy(xpath = "//a[@data-test='ring-link agile-boards-button']")
+  private SelenideElement agileBoardLink;
 
   public NavigationBar() {
     Selenide.page(this);

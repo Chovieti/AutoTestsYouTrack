@@ -2,60 +2,38 @@ package org.example.util;
 
 import com.codeborne.selenide.Selenide;
 import org.example.components.CreateIssueDialog;
-import org.example.pages.LoginPage;
-import org.example.pages.MainPage;
 import org.example.pages.issues.IssueDetailsPage;
 import org.example.pages.issues.IssuesListPage;
-import org.openqa.selenium.NoSuchElementException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IssueManager {
-  public static String createIssue(String title, String description) {
-    int maxRetries = 3;
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        IssuesListPage issuesPage = new MainPage().goToIssues().waitForPageLoaded();
-        CreateIssueDialog createIssue = issuesPage.openCreateIssueDialog();
-        createIssue.setTitle(title);
-        if (description != null && !description.isEmpty()) {
-          createIssue.setDescription(description);
-        }
-        return createIssue.create();
-      } catch (AssertionError | NoSuchElementException e) {
-        System.out.printf("[Попытка создания %d из %d] Страница ещё не обновилась. Повторяем попытку...%n", attempt, maxRetries);
+  private static final Logger log = LoggerFactory.getLogger(IssueManager.class);
 
-        Selenide.refresh();
-        if (attempt < maxRetries) {
-          Selenide.sleep(1000);
-        }
+  public static String createIssue(String title, String description) {
+    return RetryUtils.retry(3, 1000, () -> {
+      Selenide.refresh();
+      IssuesListPage issuesPage = PageHelper.openIssuesPage();
+      CreateIssueDialog createIssue = issuesPage.openCreateIssueDialog();
+      createIssue.setTitle(title);
+      if (description != null && !description.isEmpty()) {
+        createIssue.setDescription(description);
       }
-    }
-    throw new RuntimeException("Ошибка создания задачи после " + maxRetries + " попыток");
+      return createIssue.create();
+    });
   }
 
   public static void deleteIssue(String id, String baseUrl) {
-    int maxRetries = 3;
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        IssuesListPage issuesPage = new MainPage()
-            .openPage(baseUrl)
-            .goToIssues()
-            .waitForPageLoaded();
-
-        if (!issuesPage.checkIssueByIdExists(id)) {
-          System.out.printf("[Удаление] Задача с ID %s уже удалена или отсутствует. Пропускаем.%n", id);
-          return;
-        }
-
-        IssueDetailsPage issueDetails = new IssueDetailsPage().waitForPageLoaded();
-        issueDetails.deleteIssue();
-        return;
-      } catch (Throwable e) {
-        System.out.printf("[Попытка удаления %d из %d] Ошибка: %s. Повторяем попытку...%n"
-            , attempt, maxRetries, e.getMessage());
-        if (attempt < maxRetries) {
-          Selenide.sleep(1000);
-        }
-      }
+    IssuesListPage issuesPage = PageHelper.openIssuesPage(baseUrl);
+    if (!issuesPage.checkIssueByIdExists(id)) {
+      log.warn("Задача с ID {} уже удалена или отсутствует. Пропускаем", id);
+      return;
     }
+    RetryUtils.retryVoid(3, 1000, () -> {
+      IssuesListPage page = PageHelper.openIssuesPage(baseUrl);
+      page.openById(id);
+      IssueDetailsPage issueDetails = new IssueDetailsPage().waitForPageLoaded();
+      issueDetails.deleteIssue();
+    });
   }
 }

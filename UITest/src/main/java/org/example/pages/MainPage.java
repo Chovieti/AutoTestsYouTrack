@@ -3,18 +3,16 @@ package org.example.pages;
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.SelenideElement;
 import org.example.components.NavigationBar;
-import org.example.pages.agile.AgileBoardPage;
 import org.example.pages.issues.IssuesListPage;
 import org.openqa.selenium.support.FindBy;
 
-import static com.codeborne.selenide.Selenide.$x;
 import static com.codeborne.selenide.Selenide.open;
 
 public class MainPage extends BasePage<MainPage> {
   private final NavigationBar nav = new NavigationBar();
 
-//  @FindBy(xpath = "//button[@data-test='ring-link login-button']")
-  private SelenideElement loginButton = $x("//button[@data-test='ring-link login-button']");
+  @FindBy(xpath = "//button[@data-test='ring-link login-button']")
+  private SelenideElement loginButton;
 
   public MainPage openPage(String baseUrl) {
     open(baseUrl);
@@ -39,10 +37,5 @@ public class MainPage extends BasePage<MainPage> {
   public IssuesListPage goToIssues() {
     nav.clickIssues();
     return new IssuesListPage();
-  }
-
-  public AgileBoardPage goToAgile() {
-    nav.clickAgileBoard();
-    return new AgileBoardPage();
   }
 }

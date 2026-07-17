@@ -2,64 +2,78 @@ package org.example.tests;
 
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selenide;
+import com.codeborne.selenide.junit5.ScreenShooterExtension;
+import com.codeborne.selenide.logevents.SelenideLogger;
+import io.netty.util.internal.logging.Log4J2LoggerFactory;
+import org.example.TestLogger;
 import org.example.pages.LoginPage;
 import org.example.pages.MainPage;
 import org.example.pages.issues.IssueDetailsPage;
 import org.example.pages.issues.IssuesListPage;
 import org.example.util.IssueManager;
 import org.example.util.TestConfig;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.example.util.TestsUtils;
+import org.example.util.PageHelper;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith({TestLogger.class, ScreenShooterExtension.class})
 public class GeneralTests {
+  private static final Logger log = LoggerFactory.getLogger(GeneralTests.class);
   private static final String BASE_URL = TestConfig.getBaseUrl();
   private static final String USERNAME = TestConfig.getUsername();
   private static final String PASSWORD = TestConfig.getPassword();
 
-  private final List<String> createdIds = new ArrayList<>();
+  private final List<String> createdIds = Collections.synchronizedList(new ArrayList<>());
+
+  @BeforeAll
+  public static void globalSetUp() {
+    log.info("Глобальная конфигурация Selenide для всех потоков");
+  }
 
   @BeforeEach
   public void setUp() {
+    log.info("Настройка теста: Инициализация браузера и авторизация перед тестом");
     Configuration.browser = "chrome";
     Configuration.headless = false;
     Configuration.timeout = TestConfig.getTimeout();
     Configuration.screenshots = true;
     Configuration.savePageSource = false;
-
+    Configuration.reportsFolder = "target/screenshots";
     new LoginPage()
         .openPage(BASE_URL)
         .waitForPageLoaded()
         .login(USERNAME, PASSWORD)
         .waitForPageLoaded();
+    log.info("Логин выполнен успешно");
   }
 
   @AfterEach
   public void tearDown() {
+    log.info("Очистка после теста: удаление созданных задач");
     try {
       for (String id : createdIds) {
         try {
           IssueManager.deleteIssue(id, BASE_URL);
+          log.debug("Задача {} удалена", id);
         } catch (AssertionError e) {
-          System.err.println("Не удалось удалить задачу " + id + ": " + e.getMessage());
+          log.error("Не удалось удалить задачу {}: {}", id, e.getMessage());
         }
       }
     } finally {
       createdIds.clear();
       Selenide.closeWebDriver();
     }
-  }
-
-  private String uniqueTitle(String base) {
-    return base + " - " + System.currentTimeMillis();
   }
 
   @Test
@@ -75,14 +89,14 @@ public class GeneralTests {
   @DisplayName("Проверка создания задачи")
   @CsvFileSource(resources = "/csv-data/create-issue-data.csv", numLinesToSkip = 0)
   public void testCreateIssue(String title, String description) {
-    String realTitle = uniqueTitle(title);
+    String realTitle = TestsUtils.uniqueTitle(title);
 
+    log.info("Создание задачи '{}'", realTitle);
     String id = IssueManager.createIssue(realTitle, description);
     createdIds.add(id);
+    log.info("Задача создана с ID: {}", id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
 
     assertThat(issuesPage.checkIssueByTitleExists(realTitle))
         .as("Задача создалась и отображается в списке")
@@ -93,13 +107,13 @@ public class GeneralTests {
   @DisplayName("Проверка удаления задачи")
   public void testDeleteIssue() {
     String title = "Тестовая задача для удаления";
+    log.info("Создание задачи для удаления: '{}'", title);
     String id = IssueManager.createIssue(title, null);
     createdIds.add(id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
     issuesPage.checkIssueByTitleExists(title);
+    log.info("Удалкние задачи ID: {}", id);
     IssueManager.deleteIssue(id, BASE_URL);
     createdIds.remove(id);
 
@@ -112,16 +126,16 @@ public class GeneralTests {
   @DisplayName("Проверка изменения имени/описания задачи")
   @CsvFileSource(resources = "/csv-data/edit-issue-data.csv", numLinesToSkip = 0)
   public void testEditIssue(String oldTitle, String newTitle, String newDescription) {
-    String realTitle = uniqueTitle(oldTitle);
+    String realTitle = TestsUtils.uniqueTitle(oldTitle);
+    log.info("Создание задачи '{}' для редактирования", realTitle);
     String id = IssueManager.createIssue(realTitle, null);
     createdIds.add(id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
     issuesPage.checkIssueByTitleExists(realTitle);
 
     IssueDetailsPage issueDetails = issuesPage.openById(id).waitForPageLoaded();
+    log.info("Редактирование задачи: новый заголовок '{}', новое описание '{}'", newTitle, newDescription);
     issueDetails.editIssue(newTitle, newDescription);
 
     assertThat(issueDetails.getTitleText())
@@ -136,15 +150,14 @@ public class GeneralTests {
   @DisplayName("Проверка оставления комментария к задаче")
   public void testComments() {
     String title = "Тестовая задача для комментариев";
+    log.info("Создание задачи '{}' для комментариев", title);
     String id = IssueManager.createIssue(title, null);
     createdIds.add(id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
-    issuesPage.checkIssueByTitleExists(title);
-    IssueDetailsPage issueDetailsPage = issuesPage.openById(id).waitForPageLoaded();
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
+    IssueDetailsPage issueDetailsPage = issuesPage.openById(id);
     String comment = "Some comment";
+    log.info("Добавление комментария: '{}'", comment);
     issueDetailsPage.addComment(comment);
 
     assertThat(issueDetailsPage.waitForPageLoaded().checkCommentExists(comment))
@@ -156,14 +169,13 @@ public class GeneralTests {
   @DisplayName("Проверка взятия задачи в работу")
   public void testIssueTake() {
     String title = "Тестовая задача для взятия";
+    log.info("Создание задачи '{}' для назначения исполнителя", title);
     String id = IssueManager.createIssue(title, null);
     createdIds.add(id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
-    issuesPage.checkIssueByTitleExists(title);
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
     IssueDetailsPage issueDetailsPage = issuesPage.openById(id);
+    log.info("Назначение исполнителя: {}", USERNAME);
     issueDetailsPage.choiceExecutor(USERNAME);
 
     assertThat(issueDetailsPage.getExecutorText().contains(USERNAME))
@@ -176,15 +188,15 @@ public class GeneralTests {
   @CsvFileSource(resources = "/csv-data/issue-stage-data.csv", numLinesToSkip = 0)
   public void testIssueStageChange(String stage) {
     String title = "Тестовая задача для изменения";
-    String realTitle = uniqueTitle(title);
+    String realTitle = TestsUtils.uniqueTitle(title);
+    log.info("Создание задачи '{}' для смены статуса", realTitle);
     String id = IssueManager.createIssue(realTitle, null);
     createdIds.add(id);
 
-    IssuesListPage issuesPage = new MainPage()
-        .goToIssues()
-        .waitForPageLoaded();
+    IssuesListPage issuesPage = PageHelper.openIssuesPage();
     issuesPage.checkIssueByTitleExists(realTitle);
     IssueDetailsPage issueDetailsPage = issuesPage.openById(id);
+    log.info("Изменение статуса на: {}", stage);
     issueDetailsPage.choiceStage(stage);
 
     assertThat(issueDetailsPage.getStageText())

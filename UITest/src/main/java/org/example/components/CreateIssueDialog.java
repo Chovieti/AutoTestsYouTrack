@@ -5,21 +5,19 @@ import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
 import org.openqa.selenium.support.FindBy;
 
-import static com.codeborne.selenide.Selenide.$x;
-
 public class CreateIssueDialog {
-//  @FindBy(xpath = "//textarea[@data-test='summary']")
-  private SelenideElement titleInput = $x("//textarea[@data-test='summary']");
-//  @FindBy(xpath = "//div[@data-test='wysiwyg-editor-content']")
-  private SelenideElement descriptionInput = $x("//div[@data-test='wysiwyg-editor-content']");
-//  @FindBy(xpath = "//button[@data-test='submit-button']")
-  private SelenideElement submitButton = $x("//button[@data-test='submit-button']");
-//  @FindBy(xpath = "//div[@data-test='alert' and @data-test-type='success']")
-  private SelenideElement successAlert = $x("//div[@data-test='alert' and @data-test-type='success']");
-//  @FindBy(xpath = "//div[@data-test='alert-container']//a[@data-test='ring-link']")
-  private SelenideElement issueLinkInAlert = $x("//div[@data-test='alert-container']//a[@data-test='ring-link']");
-
-  private SelenideElement closeDialogButton = $x("//button[@data-test='ring-dialog-close-button']");
+  @FindBy(xpath = "//textarea[@data-test='summary']")
+  private SelenideElement titleInput;
+  @FindBy(xpath = "//div[@data-test='wysiwyg-editor-content']")
+  private SelenideElement descriptionInput;
+  @FindBy(xpath = "//button[@data-test='submit-button']")
+  private SelenideElement submitButton;
+  @FindBy(xpath = "//div[@data-test='alert' and @data-test-type='success']")
+  private SelenideElement successAlert;
+  @FindBy(xpath = "//div[@data-test='alert-container']//a[@data-test='ring-link']")
+  private SelenideElement issueLinkInAlert;
+  @FindBy(xpath = "//button[@data-test='ring-dialog-close-button']")
+  private SelenideElement closeDialogButton;
 
   public CreateIssueDialog() {
     Selenide.page(this);
