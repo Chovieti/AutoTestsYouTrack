@@ -1,0 +1,410 @@
+=‘/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const dependencies = require('./third-party-dependencies');
+const macroHandlers = require('./macro-handlers');
+const tableHandlers = require('./table-handlers');
+const stringifyHandlers = require('./stringify-handlers');
+const tagMergeProcessor = require('./tag-merge-processor');
+
+const unified = dependencies.unified;
+const parse = dependencies.parse;
+const rehype2remark = dependencies.rehype2remark;
+const stringify = dependencies.stringify;
+
+const all = dependencies.utils.all;
+const handlers = dependencies.utils.handlers;
+const wrapText = dependencies.utils.wrapText;
+const toText = dependencies.utils.toText;
+const listItemDefault = dependencies.utils.listItemDefaultHandler;
+const queryNodeSelect = dependencies.utils.selectChild.select;
+
+function cleanCDataFromCommentValue(text) {
+  return text.replace(/^\[CDATA\[/, '').replace(/\]\]$/, '');
+}
+
+tableHandlers.setUpTableHandlers(stringify);
+stringifyHandlers.setUpStringifyHandlers(stringify);
+
+const emojiMap = {
+  'blue-star': 'Ì†ΩÌ¥µ',
+  'broken-heart': 'Ì†ΩÌ≤î',
+  'cheeky': 'Ì†ΩÌ∏ã',
+  'cross': '‚ùå',
+  'green-star': 'Ì†ΩÌø¢',
+  'heart': '‚ù§Ô∏è',
+  'information': '‚ÑπÔ∏è',
+  'laugh': 'Ì†ΩÌ∏Ü',
+  'light-on': 'Ì†ΩÌ≤°',
+  'light-off': 'Ì†ΩÌ¥ò',
+  'minus': '‚ûñ',
+  'plus': '‚ûï',
+  'question': '‚ùì',
+  'red-star': 'Ì†ΩÌ¥¥',
+  'sad': '‚òπÔ∏è',
+  'smile': 'Ì†ΩÌ∏ä',
+  'thumbs-down': 'Ì†ΩÌ±é',
+  'thumbs-up': 'Ì†ΩÌ±ç',
+  'tick': '‚úÖ',
+  'warning': '‚õîÔ∏è',
+  'wink': 'Ì†ΩÌ∏â',
+  'yellow-star': '‚≠êÔ∏è'
+};
+
+const colorsClassesMap = {
+  'green': 'cell-color-green',
+  'yellow': 'cell-color-yellow',
+  'red': 'cell-color-red',
+  'grey': 'cell-color-grey'
+};
+
+const imageUrlMap = {
+  'https://confluence.jetbrains.com/download/attachments/127893548/image.png?version=1&modificationDate=1553708281000&api=v2': 'Ì†ΩÌø°',
+  'https://confluence.jetbrains.com/download/attachments/135857364/image.png?version=1&modificationDate=1563980471000&api=v2': 'Ì†ΩÌø¢'
+};
+
+function replaceAll(text, toReplace, replaceWith) {
+  let fixedContent = text;
+  while (fixedContent) {
+    let replaced = fixedContent.replace(toReplace, replaceWith);
+    if (replaced === fixedContent) {
+      break;
+    } else {
+      fixedContent = replaced;
+    }
+  }
+  return fixedContent;
+}
+
+function escapeCData(input) {
+  return replaceAll(
+      replaceAll(input, '<![CDATA', '<!--[CDATA'),
+  ']]>', ']]-->'
+  );
+}
+
+module.exports = {
+  toMarkdown: function (content, getters, context) {
+    const logInfo = context ? (context + ' ') : '';
+    content = replaceAll(replaceAll(content, '&nbsp;', ' '), 'nbsp;', ' ');
+    content = escapeCData(content);
+
+    const getUserLogin = getters.getUserLogin;
+    const hiddenContent = [];
+
+    function handleMacros(h, node) {
+      return macroHandlers.handleMacros(content, h, node, hiddenContent);
+    }
+
+
+    const pageReferences = [];
+    const externalAttachments = [];
+
+    function insertPageLink(page, linkText, h, node) {
+      const id = page.id;
+      const link = page.link;
+      let pageId = '{{EXT-' + id + '}}';
+      pageReferences.push({
+        type: 'page',
+        linkedDocumentId: id,
+        refToReplace: pageId,
+        link: link
+      });
+      console.debug(logInfo + 'resolved link ' + pageId);
+      if (Array.isArray(linkText)) {
+        return [h(node, 'text', ' '), ...linkText, h(node, 'text', '(' + pageId + ')')];
+      } else if (linkText) {
+        return [h(node, 'text', ' ' + linkText + '('), h(node, 'text', pageId), h(node, 'text', ')')];
+      }
+      return [h(node, 'text', ' ' + pageId + ' ')];
+    }
+
+    function insertBrokenPageLink(spaceId, pageTitle, h, node) {
+      const pageId = '{{EXT-' + spaceId + '/' + pageTitle + '}}';
+      console.warn(logInfo + 'could not resolve link ' + pageId);
+      return [h(node, 'text', 'Unresolved link:' + pageId)];
+    }
+
+    let stringifySettings = {
+      commonmark: false,
+      gfm: true,
+      bullet: '*',
+      listItemIndent: '1',
+      incrementListMarker: true,
+      emphasis: '*',
+      tablePipeAlign: false,
+      fences: true
+    };
+
+    function toFileName(fileName) {
+      if (getters.attachmentNames) {
+        let idx = getters.attachmentNames.indexOf(fileName);
+        if (idx < 0) {
+          fileName = getters.attachmentNames.find(it => {
+            return it.toLowerCase() === fileName.toLowerCase();
+          }) || fileName;
+        }
+      }
+      return fileName;
+    }
+
+    const getFileName = (node) => {
+      const commentNode = queryNodeSelect('[type=comment]', node);
+      return commentNode && commentNode.value && cleanCDataFromCommentValue(commentNode.value);
+    };
+
+    const processor = unified()
+      .use(parse, {fragment: true})
+      .use(rehype2remark, {
+        handlers: {
+          // Modified version of https://github.com/syntax-tree/hast-util-to-mdast/blob/main/lib/handlers/table-cell.js
+          // to pass node.properties to keep rowSpan-like attributes
+          td: (h, node) => {
+            const wrap = h.wrapText;
+            const insideTable = h.insideTable;
+            let result;
+
+            h.wrapText = false;
+            h.insideTable = true;
+            const color = node.properties['dataHighlightColour'];
+            let content = all(h, node);
+            if (color) {
+              const spanBeginMarkup = colorsClassesMap[color]
+                ? `<span class="full-cell-size ${colorsClassesMap[color]}">`
+                : `<span style="background-color:${color}" class="full-cell-size">`;
+
+              content = [h(node, 'html', spanBeginMarkup), ...content, h(node, 'html', '</span>')];
+            }
+            result = h(node, 'tableCell', node.properties, content);
+            h.wrapText = wrap;
+            h.insideTable = insideTable;
+
+            return result;
+          },
+          span: (h, node) => {
+            let style = node.properties.style;
+            if (node.children.length === 0) {
+              return h(node, 'text', ' ');
+            }
+            style = style && style.replace('color: rgb(0,0,0);', '');
+            if (style) {
+              if (style.indexOf('text-decoration: line-through') >= 0) {
+                return handlers.s(h, node);
+              }
+              const spanContent = all(h, node);
+              const open = h(node, 'html', `<span style="${style}">`);
+              const close = h(node, 'html', '</span>');
+              return [open, ...spanContent, close];
+            }
+            return all(h, node);
+          },
+          li: (h, node) => {
+            const BLOCK_LEVEL_NODES = ['p', 'ol', 'ul'];
+            // Wrap content into paragraph to avoid splitting it to multiple paragraphs
+            if (!node.children.some(c => BLOCK_LEVEL_NODES.includes(c.tagName))) {
+              return h(node, 'paragraph', {}, all(h, node));
+            }
+            return listItemDefault(h, node);
+          },
+          strong: (h, node) => {
+            if (!node.children || !node.children.length) {
+              return h(node, 'text', ' ');
+            }
+            const child = node.children[0];
+            if (child.value && child.value.trim() === '') {
+              return h(node, 'text', child.value || ' ');
+            }
+            return handlers.strong(h, node);
+          },
+          a: (h, node) => {
+            const href = node.properties['href'];
+            if (href && getters.url) {
+              let value = (node.children.find(it => {
+                return it.type === 'text';
+              }) || {}).value;
+              const text = value && value.trim();
+              const url = getters.url.replace(/^https?:\/\//, '');
+              if (href.includes(url)) {
+                const path = href.replace(/^https?:\/\//, '').replace(url, '').replace(/^\//, '').split('/');
+                if (path.length === 3 && path[0] === 'display') {
+                  // href="https://confluence.jetbrains.com/display/RUBYDEV/RubyMine+2021.1"
+                  const spaceId = path[1];
+                  const pageTitle = decodeURIComponent(path[2].replace(/\+/g, ' '));
+                  const page = getters.getPageInfo(pageTitle, spaceId);
+                  let pageLink;
+                  if (page && page.link) {
+                    page.link = href;
+                    pageLink = insertPageLink(page, text, h, node);
+                  } else {
+                    pageLink = insertBrokenPageLink(spaceId, pageTitle, h, node);
+                  }
+                  return pageLink;
+                } else if (path.length === 5 && path[0] === 'spaces' && path[2] === 'pages') {
+                  // href="https://tdadaev.atlassian.net/wiki/spaces/TES/pages/375029765/Test+Article"
+                  const pageId = path[3];
+                  return insertPageLink({id: pageId, link: href}, text, h, node);
+                } else if (href.includes("viewpage.action?pageId=")) {
+                  // href="https://tdadaev.atlassian.net/pages/viewpage.action?pageId=51941792"
+                  const pageId = href.split("viewpage.action?pageId=")[1];
+                  return insertPageLink({id: pageId, link: href}, text, h, node);
+                }
+              }
+            }
+            return handlers.a(h, node);
+          },
+          'ri:page': (h, node) => {
+            const pageTitle = node.properties['ri:content-title'];
+            const space = node.properties['ri:space-key'];
+            const page = getters.getPageInfo(pageTitle, space);
+            let linkContent = all(h, node);
+            let firstIdx = linkContent.findIndex((it) => it.type !== 'break');
+            let firstBreaks = [];
+            if (firstIdx > 0) {
+              firstBreaks = linkContent.slice(0, firstIdx);
+              linkContent.splice(0, firstIdx);
+            }
+            let reversedIndex = linkContent.slice().reverse().findIndex((it) => it.type !== 'break');
+            let lastIdx = linkContent.length - reversedIndex;
+            let lastBreaks = [];
+            if (lastIdx > 0) {
+              lastBreaks = linkContent.slice(lastIdx, linkContent.length);
+              linkContent.splice(lastIdx, reversedIndex);
+            }
+            if (!linkContent.length || linkContent.length === 1 && (linkContent[0].value || '').trim() === pageTitle) {
+              linkContent = null; // we don't need to insert link content if it equals page title
+            }
+            let pageLink;
+            if (page) {
+              pageLink = insertPageLink(page, linkContent, h, node);
+            } else {
+              pageLink = insertBrokenPageLink(space, pageTitle, h, node);
+            }
+            return [...firstBreaks, ...pageLink, ...lastBreaks];
+          },
+          'ac:link': (h, node) => {
+            const riAttachmentNode = queryNodeSelect('[tagName=ri:attachment]', node);
+            if (riAttachmentNode) {
+              const fileUrl = toFileName(riAttachmentNode.properties['ri:filename']);
+              const fileName = toFileName(getFileName(node) ?? riAttachmentNode.properties['ri:filename']);
+              return h(riAttachmentNode, 'link', {url: fileUrl, children: [h(riAttachmentNode, 'text', fileName)]});
+            }
+            return all(h, node);
+          },
+          'ri:user': (h, node) => {
+            const key = node.properties['ri:userkey'];
+            let user = key ? getUserLogin(key) : node.properties['ri:username'];
+            if(!user){
+              let id = node.properties['ri:account-id'];
+              if (id) {
+                user = getUserLogin(id);
+              }
+            }
+            return h(node, 'text', wrapText(h, '@' + user + ' '));
+          },
+          'ac:image': (h, node) => {
+            const content = node.children[0];
+            if (!content) {
+              return all(h, node);
+            }
+            let isUrl = content.tagName === 'ri:url';
+            const imageSrc = isUrl ? content.properties['ri:value'] : toFileName(content.properties['ri:filename']);
+            if (isUrl && imageUrlMap[imageSrc]) {
+              return h(node, 'text', imageUrlMap[imageSrc]);
+            }
+            if (content.children) {
+              const anotherPage = content.children.find(it => { return it.tagName === 'ri:page'; });
+              if (anotherPage) {
+                const title = anotherPage.properties['ri:content-title'];
+                const space = node.properties['ri:space-key'];
+                if (title) {
+                  const page = getters.getPageInfo(title, space);
+                  const attachment = page && page.id && getters.getAttachment(page.id, imageSrc);
+                  if (attachment) {
+                    console.trace(logInfo + 'found attachment: ' + JSON.stringify(attachment));
+                    externalAttachments.push(attachment);
+                  }
+                }
+              }
+            }
+
+            return h(node, 'image', {url: imageSrc});
+          },
+          'ac:structured-macro': handleMacros,
+          'ac:macro': handleMacros,
+          'ac:plain-text-body': (h, node) => {
+            const cleaned = macroHandlers.cleanPlainTextBody(node, content);
+            return h(node, 'text', cleaned);
+          },
+          'ac:task-list': (h, node) => {
+            if (h.insideTable) {
+              return all(h, node);
+            }
+            return handlers.ol(h, node);
+          },
+          'ac:task': (h, node) => {
+            const status = node.children.filter(c => c.tagName === 'ac:task-status')[0];
+            const checked = toText(status) === 'complete';
+            const content = node.children.filter(c => c.tagName === 'ac:task-body')[0] || [];
+
+            if (h.insideTable) {
+              return [h(node, 'text', checked ? '‚úÖ' : '‚ùå'), ...all(h, content)];
+            } else {
+              return h(
+                node,
+                'listItem',
+                {spread: false, checked: checked},
+                all(h, content)
+              );
+            }
+
+          },
+          'ac:emoticon': (h, node) => {
+            const unicode = node.properties['ac:emoji-fallback'];
+            const name = node.properties['ac:name'];
+            return [h(node, 'text', unicode || emojiMap[name] || ('`' + name + '`')), ...all(h, node)];
+          },
+          'ac:adf-fallback': () => {
+            return [];
+          },
+          'ac:adf-node': (h, node) => {
+            node.children = node.children.filter((it) => it.properties['key'] !== 'local-id');
+            return all(h, node);
+          },
+          comment: (h, node) => {
+            return h(node, 'text', wrapText(h, cleanCDataFromCommentValue(node.value)));
+          }
+        }
+      })
+      .use(tagMergeProcessor)
+      .use(stringify, stringifySettings);
+
+    const res = processor.processSync(content);
+    const additionalComments = hiddenContent.map((it) => {
+      try {
+        return unified().use(stringify, stringifySettings).stringify(unified().use(tagMergeProcessor).runSync(it));
+      } catch (e) {
+        console.warn(logInfo + 'failed to stringify hidden content ', JSON.stringify(it), e);
+      }
+    });
+
+    return {
+      markdown: res.toString(),
+      externalAttachments: externalAttachments,
+      pageReferences: pageReferences,
+      additionalComments: additionalComments
+    };
+  }
+};

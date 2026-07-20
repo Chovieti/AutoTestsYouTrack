@@ -1,0 +1,424 @@
+8F/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const contextUtils = require('@jetbrains/youtrack-scripting-api/context-utils');
+
+const connection = require('./bugzilla-connection');
+const converter = require('./bugzilla-issue-converter');
+const utils = require('./bugzilla-utils');
+const fieldsHelper = require('./bugzilla-fields');
+
+//used for 'new' header authentication provided by versions >= 5.1.x
+const newAPIVersion = 510;
+
+//flag for milestones
+const bugzillaOptions = {};
+
+let allUsers = {};
+
+//all fields map and custom fields array
+let allFields;
+let customFields;
+
+function BugzillaIssues(context) {
+  const ctxAccess = contextUtils.ContextAccess(context);
+
+  const http = connection.makeHttpConnection(ctxAccess);
+  const loadJSON = connection.loadJsonFactory(http, ctxAccess);
+
+    function prepareToImport() {
+      const currentVersion = parseInt((getServerInfo().version.split('.').join('')));
+      ctxAccess.setParam('isNew', (currentVersion >= newAPIVersion).toString());
+      ctxAccess.setParam('headerAdded', 'false');
+      //initializing paging for issues
+      ctxAccess.setParam('currentOffset', '0');
+      ctxAccess.setParam('project', '');
+      //filling is allUsers map
+      usersGetter();
+      allFields = loadJSON('/rest.cgi/field/bug').fields;
+      //saving to the fieldsMap
+      fieldsHelper.fieldsMap.set(allFields);
+    }
+
+    function usersGetter() {
+      const query = {'match': '*', 'limit': '1000'};
+      const users = loadJSON('/rest.cgi/user', query).users;
+
+      if (!users.length) {throw 'You do not have enough permissions to fetch users data. Unable to proceed';}
+      users.sort((a, b) => a.id - b.id).forEach(user => {
+        allUsers[user.name] = {};
+        allUsers[user.name] = {
+          id: user.id,
+          login: user.name,
+          name: user.name,
+          email: user.email,
+          fullName: user.real_name
+        };
+
+      });
+    }
+
+    function auxDataGetter(issue) {
+      issue.history = loadJSON('/rest.cgi/bug/' + issue.id + '/history').bugs[0].history;
+      issue.comments = loadJSON('/rest.cgi/bug/' + issue.id + '/comment').bugs[issue.id].comments;
+      issue.attachments = loadJSON('/rest.cgi/bug/' + issue.id + '/attachment').bugs[issue.id];
+      return issue;
+    }
+
+    function getServerInfo() {
+      const result = http.getSync('/rest.cgi/version');
+      //throw Error if the host is not accessible to YouTrack server
+      if (!result.headers) {throw 'Cannot connect to the host specified. Please check your network connection';}
+      //checking is the response was in expected JSON format
+      const contentTypeHeader = result.headers.filter(h => h.name.toLowerCase() === 'content-type')[0].value;
+      if (!contentTypeHeader.includes('application/json')) {throw `The server did not return expected JSON. The response type was ${contentTypeHeader}. Please check the URL entered`;}
+      //checking if Bugzilla server does not have JSON perl module installed
+      if (result.code === 500) {
+        throw 'Please install JSON Perl module to proceed.';
+      }
+      const serverTimeHeader = result.headers.filter(h => h.name.toLowerCase() === 'date')[0];
+      const resJSON = JSON.parse(result.response);
+      return {
+        version: resJSON.version,
+        time: new Date(serverTimeHeader.value).toISOString()
+      };
+    }
+
+    function getProjects() {
+      //checking which API we should use considering authentication
+      const currentVersion = parseInt((getServerInfo().version.split('.').join('')));
+      console.log(currentVersion);
+      console.log('isNew?', currentVersion >= newAPIVersion);
+      ctxAccess.setParam('isNew', (currentVersion >= newAPIVersion).toString());
+
+      const projects = loadJSON('/rest.cgi/product', {'type': 'accessible'}).products;
+
+      //checking bugzillaOptions
+      const parameters = loadJSON('/rest.cgi/parameters').parameters;
+      //settings parameters
+      bugzillaOptions.milestones = utils.checkOption(parameters.usetargetmilestone);
+      bugzillaOptions.qaContact = utils.checkOption(parameters.useqacontact);
+      bugzillaOptions.useSeeAlso = utils.checkOption(parameters.use_see_also);
+      bugzillaOptions.useClassification = utils.checkOption(parameters.useclassification);
+      bugzillaOptions.useWhiteBoard = utils.checkOption(parameters.usestatuswhiteboard);
+
+      return projects.map(project => {
+        return {
+          id: project.id,
+          name: project.name,
+          key: project.name.toLowerCase()
+        };
+      });
+    }
+
+    function getProject(currentProject) {
+      const project = loadJSON('/rest.cgi/product', {'ids': currentProject.id}).products[0];
+      const leadUser = allUsers[Object.keys(allUsers)[0]];
+
+
+      const defaultFields = {
+        id: project.id,
+        name: project.name,
+        key: project.name.toLowerCase(),
+        description: project.description,
+        lead: {
+          id: leadUser.id,
+          login: leadUser.login,
+          email: leadUser.email,
+          name: leadUser.name,
+          fullName: leadUser.fullName
+        },
+        fields: [
+          {
+            id: 'Subsystem',
+            name: 'Subsystem',
+            multiValue: false,
+            type: 'ownedField',
+            values: project.components.map(component => {
+              const subsystemOwner = allUsers[component.default_assigned_to] || leadUser;
+              return {
+                name: component.name,
+                owner: {
+                  id: subsystemOwner.id,
+                  name: subsystemOwner.name,
+                  login: subsystemOwner.login,
+                  email: subsystemOwner.email,
+                  fullName: subsystemOwner.fullName
+                }
+              };
+            })
+          },
+          {
+            id: 'State',
+            name: 'State',
+            multiValue: false,
+            type: 'state',
+            values: fieldsHelper.fieldExtractor(allFields, 'bug_status').filter(el => el.name).map(el => {
+              return {
+                name: fieldsHelper.stateMap[el.name],
+                isResolved: !el.is_open
+              };
+            })
+          },
+          {
+            id: 'Resolution',
+            name: 'Resolution',
+            multiValue: false,
+            type: 'enum',
+            values: fieldsHelper.fieldExtractor(allFields, 'resolution').filter(el => el.name).map(el => {
+              return {
+                name: fieldsHelper.stateMap[el.name]
+              };
+            })
+          },
+          {
+            id: 'Assignee',
+            name: 'Assignee',
+            multiValue: false,
+            type: 'user'
+          },
+          {
+            id: 'Type',
+            name: 'Type',
+            multiValue: false,
+            type: 'enum',
+            values: fieldsHelper.fieldExtractor(allFields, 'bug_severity').map(el => {
+              return {
+                name: el.name.replace(/^./, str => str.toUpperCase())
+              };
+            })
+          },
+          {
+            id: 'Estimation',
+            name: 'Estimation',
+            multiValue: false,
+            type: 'period'
+          },
+          {
+            id: 'Spent time',
+            name: 'Spent time',
+            multiValue: false,
+            type: 'period'
+          },
+          //importance
+          {
+            id: 'Priority',
+            name: 'Priority',
+            multiValue: false,
+            type: 'enum',
+            values: fieldsHelper.fieldExtractor(allFields, 'priority').filter(el => el.name !== '---').map(el => {
+              return {
+                name: el.name
+              };
+            })
+          },
+          //not multi because of https://bugzilla.readthedocs.io/en/5.0/administering/categorization.html#versions
+          {
+            id: 'Version',
+            name: 'Version',
+            multiValue: false,
+            type: 'version',
+            values: project.versions.filter(ver => ver.name !== 'unspecified').map(version => {
+              return {
+                id: version.id,
+                name: version.name
+              };
+            })
+          },
+          {
+            id: 'Platform',
+            name: 'Platform',
+            multiValue: false,
+            type: 'enum',
+            values: fieldsHelper.fieldExtractor(allFields, 'rep_platform').map(el => {
+              return {
+                name: el.name
+              };
+            })
+          },
+          {
+            id: 'OS',
+            name: 'OS',
+            multiValue: false,
+            type: 'enum',
+            values: fieldsHelper.fieldExtractor(allFields, 'op_sys').map(el => {
+              return {
+                name: el.name
+              };
+            })
+          }
+        ]
+      };
+
+      if (bugzillaOptions.milestones) {
+        defaultFields.fields.push({
+          id: 'Milestone',
+          name: 'Milestone',
+          multiValue: false,
+          type: 'version',
+          values: project.milestones.filter(milestone => milestone.name !== '---').map(milestone => {
+            return {
+              name: milestone.name,
+              released: milestone.is_active === true
+            };
+          })
+        });
+      } else if (bugzillaOptions.qaContact) {
+        defaultFields.fields.push({
+          id: 'QA Contact',
+          name: 'QA Contact',
+          multiValue: false,
+          type: 'user'
+        });
+      } else if (bugzillaOptions.useSeeAlso) {
+        defaultFields.fields.push({
+          id: 'See Also',
+          name: 'See Also',
+          multiValue: false,
+          type: 'text'
+        });
+      } else if (bugzillaOptions.useWhiteBoard) {
+        defaultFields.fields.push({
+          id: 'Whiteboard',
+          name: 'Whiteboard',
+          multiValue: false,
+          type: 'string'
+        });
+      } else if (bugzillaOptions.useClassification) {
+        defaultFields.fields.push({
+          id: 'Classification',
+          name: 'Classification',
+          multiValue: false,
+          type: 'enum'
+        });
+      }
+      //checking if there are custom fields presented
+      customFields = fieldsHelper.filterCustomFields(allFields);
+      if (customFields.length) {defaultFields.fields = defaultFields.fields.concat(fieldsHelper.customFieldsConverter(customFields));}
+
+      return defaultFields;
+    }
+
+    function getUsers(group, skip, top) {
+      /*https://bugzilla.readthedocs.io/en/5.0/api/core/v1/user.html#get-user
+        Most installations have a limit on how many matches are returned for each string; the default is 1000 but can be changed by the Bugzilla administrator
+         */
+
+      //used for tags visibility as they are global per server
+      //https://bugzilla.readthedocs.io/en/5.0/administering/keywords.html?highlight=keyword#keywords
+      if (group.id !== utils.allUsersGroup.id) {
+        let users;
+        const query = {'groups': group.name, 'match': '*', 'limit': top + ''};
+
+        users = loadJSON('/rest.cgi/user', query).users;
+
+        return users.map(user => {
+          return {
+            id: user.id,
+            login: user.name,
+            name: user.name,
+            fullName: user.real_name,
+            email: user.email
+          };
+        });
+      }
+      return [];
+    }
+
+    function getAttachmentContent(project, issue, attachment) {
+      try {
+        const id = attachment.id;
+        const res = loadJSON('/rest.cgi/bug/attachment/' + id).attachments[id];
+        return {
+          data: res.data,
+          metadata: {
+            mimeType: res.content_type
+          }
+        };
+      } catch (e) {
+        console.debug('Failed to download attachment :( ', e.message);
+      }
+    }
+
+    function getIssueUpdates(project, after, updatedAfter, top) {
+      let count = 0;
+      let bugzillaIssues = [];
+
+      //getting data from the context
+      let currentOffset = parseInt(ctxAccess.getParam('currentOffset'));
+      let currentProject = ctxAccess.getParam('project');
+
+      //nullifying offset for next project
+      if (currentProject !== project.name) {
+        if (currentProject) {
+          currentOffset = 0;
+          ctxAccess.setParam('currentOffset', currentOffset.toString());
+        }
+        currentProject = project.name;
+        ctxAccess.setParam('project', currentProject);
+      }
+
+      const query = {
+        'product': project.name,
+        'limit': top + '',
+        'status': '*',
+        'offset': currentOffset + ''
+      };
+
+      if (updatedAfter) {
+        query.last_change_time = updatedAfter;
+      }
+
+      let tempIssues = loadJSON('/rest.cgi/bug', query).bugs || [];
+      tempIssues.forEach(issue => {
+        bugzillaIssues.push(issue);
+        count++;
+      });
+      currentOffset += count;
+      ctxAccess.setParam('currentOffset', currentOffset.toString());
+      console.log('Loaded ' + count + ' issues from ' + project.name);
+
+      console.log('Requesting changes, attachments and comments');
+      bugzillaIssues = bugzillaIssues.map(auxDataGetter);
+      return bugzillaIssues.map(issue => converter.convertBugzillaIssue(issue, customFields, allUsers));
+    }
+
+    function getIssues(project, after, top) {
+      return getIssueUpdates(project, after, null, top);
+    }
+
+    return {
+      prepareToImport: prepareToImport,
+      getServerInfo: getServerInfo,
+      getProjects: getProjects,
+      getProject: getProject,
+      getUsers: getUsers,
+      getIssues: getIssues,
+      getIssueUpdates: getIssueUpdates,
+      getAttachmentContent: getAttachmentContent,
+      getTimestampFormats: () => {
+        return ['yyyy-MM-dd\'T\'HH:mm:ss.SSSX', 'yyyy-MM-dd\'T\'HH:mm:ssX', 'yyyy-MM-dd\'T\'HH:mmX', 'yyyy-MM-dd'];
+      },
+      getLinkTypes: () => [{
+        id: '1',
+        name: 'Depend',
+        sourceToTarget: 'is required for',
+        targetToSource: 'depends on'
+      }]
+    };
+}
+
+exports.Client = BugzillaIssues;

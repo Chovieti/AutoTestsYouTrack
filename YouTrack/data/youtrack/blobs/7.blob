@@ -1,0 +1,401 @@
+,É/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const Connection = require('./confluence-connection');
+const User = require('./confluence-user');
+const Comment = require('./confluence-comment');
+const Util = require('./confluence-utils');
+const Attachment = require('./confluence-attachment');
+const Content = require('./confluence-content');
+const Context = require('./confluence-context');
+
+function getArticleUpdates(projectInfo, after, updatedAfter, top) {
+  let articles = [];
+  let lastIterationLength = top;
+
+  while (articles.length < top && lastIterationLength === top) {
+    let articleOnIteration = getPages(projectInfo, after, top);
+
+    lastIterationLength = articleOnIteration.length;
+
+    let filteredArticles = articleOnIteration.filter(article => {
+      return new Date(article.fields.updated) > new Date(updatedAfter);
+    });
+
+    articles = articles.concat(filteredArticles);
+  }
+
+  let blogPosts = [];
+  lastIterationLength = top;
+
+  while (blogPosts.length < top && lastIterationLength === top) {
+    let blogPostsOnIteration = getBlogPosts(projectInfo, after, top);
+    lastIterationLength = blogPostsOnIteration.length;
+    let filteredBlogPosts = blogPostsOnIteration.filter(blogPost => {
+      return new Date(blogPost.fields.updated) > new Date(updatedAfter);
+    });
+    blogPosts = blogPosts.concat(filteredBlogPosts);
+  }
+
+  return articles.concat(blogPosts);
+}
+
+function getArticles(project, after, top) {
+  let pages = getPages(project, after, top);
+  let blogPosts = getBlogPosts(project, after, top);
+  return pages.concat(blogPosts);
+}
+
+function getPages(project, after, top) {
+  let articles = [];
+  let cursor = '';
+
+  if (after) {
+    cursor = findCursor(project, after, top);
+  }
+
+  while (cursor !== null) {
+    let params = {
+      limit: `${top}`,
+      sort: 'created-date',
+      'body-format': 'storage'
+    };
+
+    if (cursor !== '') {
+      params.cursor = cursor;
+    }
+
+    let response = Connection.loadJson(`api/v2/spaces/${project.id}/pages`, params);
+    if (response._links && response._links.next) {
+      const next = response._links.next;
+      cursor = next.split('cursor=')[1].split('&')[0];
+    } else {
+      cursor = null;
+    }
+
+    articles = articles.concat(response.results);
+  }
+
+  console.log('Loaded ' + articles.length + ' articles.');
+
+  articles = articles.map(article => convertArticle(article, project));
+
+  return articles;
+}
+
+function getBlogPosts(project, after, top) {
+  let blogPosts = [];
+  let cursor = '';
+  if (after) {
+    cursor = findBlogPostCursor(project, after, top);
+  }
+  while (cursor !== null) {
+    let params = {
+      limit: `${top}`,
+      sort: 'created-date',
+      'body-format': 'storage'
+    };
+    if (cursor !== '') {
+      params.cursor = cursor;
+    }
+    let response;
+    try {
+      response = Connection.loadJson(`api/v2/spaces/${project.id}/blogposts`, params);
+    } catch (e) {
+      console.log('No blog posts found for space ' + project.name);
+      return [];
+    }
+    if (response._links && response._links.next) {
+      const next = response._links.next;
+      cursor = next.split('cursor=')[1].split('&')[0];
+    } else {
+      cursor = null;
+    }
+    blogPosts = blogPosts.concat(response.results);
+  }
+  console.log('Loaded ' + blogPosts.length + ' blog posts.');
+  blogPosts = blogPosts.map(blogPost => convertBlogPost(blogPost, project));
+  return blogPosts;
+}
+
+function findCursor(project, after, top){
+  let localCursor = null;
+  let cursor = '';
+
+  let params = {
+    limit: `${top}`,
+    sort: 'created-date'
+  };
+
+  while (cursor === '' && cursor !== null){
+
+    let response = Connection.loadJson(`api/v2/spaces/${project.id}/pages`, params);
+    let results = response.results;
+
+    if (results.length > 0){
+      let lastPageId = results[results.length - 1].id;
+
+      if (`${lastPageId}` === `${after.id}`){
+        if (response._links && response._links.next) {
+          const next = response._links.next;
+          cursor = next.split('cursor=')[1].split('&')[0];
+        } else {
+          cursor = null;
+        }
+      } else if (response._links && response._links.next) {
+        const next = response._links.next;
+        localCursor = next.split('cursor=')[1].split('&')[0];
+        params.cursor = localCursor;
+      } else {
+        cursor = null;
+      }
+    } else {
+      cursor = null;
+    }
+  }
+  return cursor;
+}
+
+function findBlogPostCursor(project, after, top){
+  let localCursor = null;
+  let cursor = '';
+  let params = {
+    limit: `${top}`,
+    sort: 'created-date'
+  };
+
+  while (cursor === '' && cursor !== null){
+    let response;
+    try {
+      response = Connection.loadJson(`api/v2/spaces/${project.id}/blogposts`, params);
+    } catch (e) {
+      return null;
+    }
+    let results = response.results;
+    if (results.length > 0){
+      let lastBlogPostId = results[results.length - 1].id;
+
+      if (`${lastBlogPostId}` === `${after.id}`){
+        if (response._links && response._links.next) {
+          const next = response._links.next;
+          cursor = next.split('cursor=')[1].split('&')[0];
+        } else {
+          cursor = null;
+        }
+      } else if (response._links && response._links.next) {
+        const next = response._links.next;
+        localCursor = next.split('cursor=')[1].split('&')[0];
+        params.cursor = localCursor;
+      } else {
+        cursor = null;
+      }
+    } else {
+      cursor = null;
+    }
+  }
+
+  return cursor;
+}
+
+function convertArticle(article, project) {
+  return {
+    id: article.id,
+    key: article.id,
+    fields: convertFields(article, project),
+    history: []
+  };
+}
+
+function convertBlogPost(blogPost, project) {
+  return {
+    id: blogPost.id,
+    key: blogPost.id,
+    fields: convertBlogPostFields(blogPost, project),
+    history: []
+  };
+}
+
+
+function convertFields(article, project) {
+
+  const versions = getArticleVersions(article);
+  const restrictions = getPageRestrictions(article);
+  const content = Content.getContent(article, project);
+  const comments = [...Comment.getComments(article), ...Comment.getInlineComments(article)];
+  comments.forEach(comment => {
+    let content = Content.getCommentContent(article, comment, project);
+    comment.text = content.markdown;
+    comment.references = content.pageReferences;
+  });
+
+  const author = User.getUserById(article.authorId);
+
+  return {
+    created: article.createdAt,
+    author: author,
+    summary: article.title,
+    content: content.markdown,
+    references: content.pageReferences,
+    updatedBy: versions.length > 0 ? User.getUserById(versions[versions.length - 1].authorId) : author,
+    updated: getUpdated(comments, versions),
+    parent: article.parentId,
+    attachments: Attachment.getArticleAttachments(article),
+    comments: comments,
+    visibleToUsers: restrictions.visibleToUsers,
+    visibleToGroups: restrictions.visibleToGroups,
+    tags: getLabels(article.id, 'pages'),
+    project: project
+  };
+}
+
+function convertBlogPostFields(blogPost, project) {
+
+  const versions = getBlogPostVersions(blogPost);
+  const restrictions = getPageRestrictions(blogPost);
+  const content = Content.getContent(blogPost, project);
+  const comments = [...Comment.getBlogPostComments(blogPost), ...Comment.getBlogPostInlineComments(blogPost)];
+  comments.forEach(comment => {
+    let content = Content.getCommentContent(blogPost, comment, project);
+    comment.text = content.markdown;
+    comment.references = content.pageReferences;
+  });
+
+  const author = User.getUserById(blogPost.authorId);
+
+  return {
+    created: blogPost.createdAt,
+    author: author,
+    summary: blogPost.title,
+    content: content.markdown,
+    references: content.pageReferences,
+    updatedBy: versions.length > 0 ? User.getUserById(versions[versions.length - 1].authorId) : author,
+    updated: getUpdated(comments, versions),
+    parent: null,
+    attachments: Attachment.getBlogPostAttachments(blogPost),
+    comments: comments,
+    visibleToUsers: restrictions.visibleToUsers,
+    visibleToGroups: restrictions.visibleToGroups,
+    tags: getLabels(blogPost.id, 'blogposts'),
+    project: project
+  };
+}
+
+function getLabels(contentId, contentType) {
+  try {
+    const labels = Util.getItemsWithCursor(
+          `api/v2/${contentType}/${contentId}/labels`,
+          {
+            limit: '25'
+          },
+          'labels',
+          null
+    );
+    return labels.map(label => ({
+      id: label.id,
+      name: label.name,
+      type: 'tag'
+    }));
+  } catch (e) {
+    console.warn('Failed to load labels for ' + contentType + '/' + contentId + ': ' + e);
+    return [];
+  }
+}
+
+function getUpdated(comments, versions){
+  let lastCommentUpdated = null;
+  let lastArticleUpdated = null;
+  if (versions.length) {
+    lastArticleUpdated = new Date(Math.max(...versions.map(version => new Date(version.createdAt)))).toISOString();
+  }
+  if (comments.length) {
+    lastCommentUpdated = new Date(Math.max(...comments.map(comment => new Date(comment.updated)))).toISOString();
+  }
+  if (lastCommentUpdated !== null){
+    if (new Date(lastArticleUpdated) < new Date(lastCommentUpdated)){
+      return lastCommentUpdated;
+    }
+  }
+  return lastArticleUpdated;
+}
+
+function getArticleVersions(article) {
+  return Util.getItemsWithCursor(
+        `api/v2/pages/${article.id}/versions`,
+        {
+          limit: '5'
+        },
+        'versions',
+        null
+  );
+}
+
+function getBlogPostVersions(blogPost) {
+  return Util.getItemsWithCursor(
+        `api/v2/blogposts/${blogPost.id}/versions`,
+        {
+          limit: '5'
+        },
+        'blog post versions',
+        null
+  );
+}
+
+function getPageRestrictions(article) {
+  const restrictions = {
+    visibleToUsers: [],
+    visibleToGroups: []
+  };
+
+  const isCloud = Context.getValue('isCloud') !== 'false';
+
+  //attention! v1 api
+  let response;
+  let restrictionsList;
+  if (isCloud) {
+    response = Connection.loadJson(
+      `rest/api/content/${article.id}/restriction`,
+      {
+        expand: 'restrictions.user,restrictions.group'
+      }
+    );
+    restrictionsList = response.results || [];
+  } else {
+    response = Connection.loadJson(
+      `rest/api/content/${article.id}/restriction/byOperation`
+    );
+    restrictionsList = response.restrictions || [];
+  }
+
+  restrictionsList
+    .filter(restriction => restriction.operation === 'read' || restriction.operation === 'update')
+    .forEach(restriction => {
+      let _restr = restriction.restrictions;
+      if (_restr) {
+        const users = (_restr.user && _restr.user.results) ? _restr.user.results : [];
+        users.map(user => User.getUserById(user.accountId || user.id))
+          .forEach(user => restrictions.visibleToUsers.push(user.id));
+        const groups = (_restr.group && _restr.group.results) ? _restr.group.results : [];
+        groups.forEach(group => restrictions.visibleToGroups.push(group.id));
+      }
+    });
+
+  return restrictions;
+}
+
+module.exports = {
+  getArticles,
+  getArticleUpdates
+};

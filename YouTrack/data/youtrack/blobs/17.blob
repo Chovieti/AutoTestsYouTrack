@@ -1,0 +1,458 @@
+8¨/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const Users = require('./space-users');
+const utils = require('./space-utils');
+
+const SUPPORTED_ATTACHMENTS = ['ImageAttachment', 'FileAttachment', 'VideoAttachment'];
+
+const filterAttachments =  attachment => SUPPORTED_ATTACHMENTS.includes(attachment.details.className);
+
+function converterFactory(GET, importState) {
+  const {url, importMentionedIssues} = importState.settings;
+
+  const projectKey = () => importState.currentProject.key;
+
+  const LINKS_REGEXP = () => new RegExp(`${projectKey()}-T-(\\d+)`, 'g');
+  const HTTP_LINKS_REGEXP = () => new RegExp(`${url}\/p\/${projectKey().toLowerCase()}\/issues\/(\\d+)`, 'g');
+
+  const groups = {};
+
+  function getUserGroup(id) {
+    if (groups[id]) {
+      return groups[id];
+    }
+    const group = GET(`/team-directory/teams/id:${id}`);
+    const convertedGroup = {
+      id: group.id,
+      name: group.name,
+      type: 'group'
+    };
+    groups[id] = convertedGroup;
+    return convertedGroup;
+  }
+
+  function mapValue(spaceField) {
+    const clazz = spaceField.className;
+    if (clazz === 'StringCFValue') {
+      return {
+        type: 'string',
+        value: spaceField.value
+      };
+    } else if (clazz === 'StringListCFValue') {
+      return {
+        type: 'string',
+        value: (spaceField.values || []).join(', ')
+      };
+    } else if (clazz === 'IntListCFValue') {
+      return {
+        type: 'string',
+        value: (spaceField.values || []).join(', ')
+      };
+    } else if (clazz === 'FractionCFValue') {
+      return {
+        type: 'string',
+        value: spaceField.value ? spaceField.value.numerator + '/' + spaceField.value.denominator : null
+      };
+    } else if (clazz === 'AutonumberCFValue') {
+      return {
+        type: 'string',
+        value: spaceField.value
+      };
+    } else if (clazz === 'EnumListCFValue') {
+      return {
+        type: 'enum',
+        multiValue: true,
+        value: (spaceField.values || []).map(fieldValue => {
+          return {
+            type: 'enum',
+            multiValue: true,
+            id: fieldValue.id,
+            name: fieldValue.value
+          };
+        })
+      };
+    } else if (clazz === 'EnumCFValue') {
+      return spaceField.value ? {
+        type: 'enum',
+        name: spaceField.value.value
+      } : null;
+    } else if (clazz === 'BooleanCFValue') {
+      return {
+        type: 'enum',
+        name: spaceField.value ? 'checked' : 'not checked'
+      };
+    } else if (clazz === 'DateCFValue') {
+      return {
+        type: 'date',
+        value: spaceField.value ? spaceField.value.iso : null
+      };
+    } else if (clazz === 'DateTimeCFValue') {
+      return {
+        type: 'datetime',
+        value: spaceField.value ? spaceField.value.iso : null
+      };
+    } else if (clazz === 'PercentageCFValue') {
+      return {
+        type: 'integer',
+        value: spaceField.value ? spaceField.value.toString() : null
+      };
+    } else if (clazz === 'ProfileListCFValue') {
+      return {
+        type: 'user',
+        multiValue: true,
+        value: (spaceField.profiles || []).map(profile => {
+          const user = Users.getUser(GET, profile.id);
+          user.multiValue = true;
+          return user;
+        })
+      };
+    } else if (clazz === 'ProfileCFValue') {
+      return spaceField.profile ? Users.getUser(GET, spaceField.profile.id) : null;
+    } else if (clazz === 'TeamCFValue') {
+      return spaceField.team ? getUserGroup(spaceField.team.id) : null;
+    } else if (clazz === 'UrlCFValue') {
+      return {
+        type: 'string',
+        value: spaceField.href
+      };
+    } else if (clazz === 'IssueListCFValue') {
+      return {
+        type: 'Issue',
+        target: spaceField.issues
+      };
+    } else if (clazz === 'IssueCFValue') {
+      return {
+        type: 'Issue',
+        target: spaceField.issue
+      };
+    }
+    return null;
+  }
+
+
+  function mapAttachments(attachments, text, author, created) {
+    const reg = /\!\[([^\[\]]+)\]\(\/d\/([^\(\)]+)\)/g;
+    let attachmentsFromText = [];
+
+    text = (text || '').replace(reg, (match, name, id) => {
+      // side effect, sorry
+      attachmentsFromText.push({
+        id: id,
+        created: created,
+        filename: name,
+        author: author
+      });
+
+      return `![${name}](${name})`;
+    });
+
+    return {
+      attachments: (attachments && attachments.filter(filterAttachments).map(attachment => {
+        return {
+          id: attachment.details.id,
+          created: created,
+          filename: attachment.details.filename || attachment.details.name || '',
+          author: author
+        };
+      }) || []).concat(attachmentsFromText),
+      fixedText: fixLinks(text)
+    };
+  }
+
+  function fixUserMentions(text) {
+    const mentionsRegexp = /@{[^,]+,([^,]+),[^,]+,[^,]+}/g;
+    return text.replace(mentionsRegexp, function (matched, spaceLogin) {
+      return `@${spaceLogin}`;
+    });
+  }
+
+  function mapFields(spaceFields, getUser) {
+    const fields = Object.entries(spaceFields).map(property => {
+      const value = mapValue(property[1], getUser);
+      return {_name: property[0], ...value};
+    });
+    return {
+      customFields: fields.filter(it => it.type && it.type !== 'Issue'),
+      customLinks: fields.filter(it => it.type === 'Issue').map(link => {
+        const links = [];
+        if ((link.target || []).length) {
+          links.push(link.target.map(issue => {
+            return {
+              linkName: link._name,
+              target: issue.id
+            };
+          }));
+        } else if ((link.target || {}).id) {
+          links.push([{
+            linkName: link._name,
+            target: link.target.id
+          }]);
+        }
+        return links.flat();
+      }).flat()
+    };
+  }
+
+  function fixIssueMentions(text) {
+    return text.replace(LINKS_REGEXP(), `${projectKey()}-$1`);
+  }
+
+  function fixLinks(text) {
+    return text.replace(HTTP_LINKS_REGEXP(), `${projectKey()}-$1`).replace(`${projectKey()}-T-`, `${projectKey()}-`);
+  }
+
+  function findLinks(spaceComment) {
+    if (!importMentionedIssues) {
+      return [];
+    }
+    const text = spaceComment.text || '';
+    const directLinks = (text.match(LINKS_REGEXP()) || []).map(s => s.replace(`${projectKey()}-T-`, ''));
+    const directHttpLinks = (text.match(HTTP_LINKS_REGEXP()) || []).map(s => s.replace(`${url}/p/${projectKey()}/issues/`, ''));
+    return directLinks.concat(directHttpLinks).map((number) => {
+      try {
+        return GET(`/projects/id:${importState.currentProject.id}/planning/issues/number:${number}`, {
+          '$fields': 'id'
+        }).id;
+      } catch (e) {
+        return null;
+      }
+    }).filter(id => id);
+  }
+
+  function findAuthor(spaceAuthor) {
+    const authorIsUser = spaceAuthor.details && (spaceAuthor.details.user || {}).id;
+    return authorIsUser ? Users.getUser(GET, spaceAuthor.details.user.id) : spaceAuthor.name;
+  }
+
+  function mapComment(spaceComment) {
+    const author = findAuthor(spaceComment.author);
+    const {attachments, fixedText} = mapAttachments(spaceComment.attachments, spaceComment.text, author, spaceComment.created.iso);
+
+    return {
+      id: spaceComment.id,
+      text: fixIssueMentions(fixUserMentions(fixedText)),
+      author: author,
+      created: spaceComment.created.iso,
+      attachments
+    };
+  }
+
+  function mapTag(spaceTag) {
+    const parentTagName = spaceTag.parent ? spaceTag.parent.name : '';
+    return {
+      name: parentTagName ? parentTagName + '.' + spaceTag.name : spaceTag.name,
+      type: 'tag',
+      visibleToGroups: [utils.allUsersGroup]
+    };
+  }
+
+  function mapWatcher(spaceWatcher, getUser) {
+    return getUser(GET, spaceWatcher.id);
+  }
+
+  function extractSubtasksLinks(issue) {
+    if (!issue?.id) {
+      return [];
+    }
+    const links = [];
+    try {
+      const detailedIssue = GET(`/projects/id:${importState.currentProject.id}/planning/issues/id:${issue.id}`, {
+        '$fields': 'subItemsList(id)'
+      });
+      const checklistId = detailedIssue?.subItemsList?.id;
+      if (!checklistId) {
+        return links;
+      }
+      const checklistTree = GET(`/team-directory/profiles/me/checklists/${checklistId}/full-checklist-tree`, {
+        '$fields': 'children(issue(id),children(issue(id),children(issue(id))))'
+      });
+      const extractIssueIds = (nodes) => {
+        if (!Array.isArray(nodes)) {
+          return [];
+        }
+        return nodes.reduce((acc, node) => {
+          if (!node.children) {
+            return acc;
+          }
+          const childIds = node.children
+              .filter(child => child.issue?.id && child.issue.id !== issue.id)
+              .map(child => child.issue.id);
+          const nestedIds = node.children
+              .filter(child => child.children)
+              .flatMap(child => extractIssueIds([child]));
+          return acc.concat(childIds, nestedIds);
+        }, []);
+      };
+      const childIssueIds = extractIssueIds(checklistTree);
+      return childIssueIds.map(childId => ({
+        linkName: 'parent for',
+        target: childId
+      }));
+    } catch (error) {
+      const fallbackIssueId = issue.subItemsList?.issue?.id;
+      if (fallbackIssueId && fallbackIssueId !== issue.id) {
+        return [{
+          linkName: 'relates to',
+          target: fallbackIssueId
+        }];
+      }
+      return [];
+    }
+  }
+
+  function toYouTrackIssue(spaceIssue) {
+    const issueNumber = spaceIssue.number;
+    if (importState.knownIds.includes(issueNumber)) {
+      console.log(`Space issue number clash: ${issueNumber}`);
+      return null;
+    }
+    importState.knownIds.push(issueNumber);
+    const convertedComments = spaceIssue.comments.map(spaceComment => mapComment(spaceComment));
+    const convertedTags = spaceIssue.tags.map(spaceTag => mapTag(spaceTag));
+    const links = spaceIssue.comments.map(spaceComment => findLinks(spaceComment)).flat();
+    const issueDescriptionLinks = findLinks({text: spaceIssue.description});
+    const watchers = spaceIssue.watchers.map(watcher => mapWatcher(watcher, Users.getUser)).filter(watcher => watcher);
+    const author = findAuthor(spaceIssue.createdBy);
+    const {attachments, fixedText} = mapAttachments(spaceIssue.attachments, spaceIssue.description, author, spaceIssue.creationTime.iso);
+    const {customFields, customLinks} = mapFields(spaceIssue.customFields, Users.getUser);
+    const subtaskLinks = extractSubtasksLinks(spaceIssue);
+
+
+    function calculateTotalSpentTime(spentTimeItems) {
+      if (!spentTimeItems || spentTimeItems.length === 0) {
+        return null;
+      }
+      let totalHours = 0;
+      let totalMinutes = 0;
+      spentTimeItems.forEach(item => {
+        const duration = item.duration;
+        if (!duration) {return;}
+        const hoursMatch = duration.match(/(\d+)H/);
+        if (hoursMatch) {
+          const hours = parseInt(hoursMatch[1], 10);
+          totalHours += hours;
+        }
+        const minutesMatch = duration.match(/(\d+)M(?!S)/);
+        if (minutesMatch) {
+          const minutes = parseInt(minutesMatch[1], 10);
+          totalMinutes += minutes;
+        }
+      });
+      totalHours += Math.floor(totalMinutes / 60);
+      totalMinutes = totalMinutes % 60;
+      const days = Math.floor(totalHours / 24);
+      const remainingHours = totalHours % 24;
+      if (days === 0 && remainingHours === 0 && totalMinutes === 0) {
+        return null;
+      }
+      let formattedDuration = '';
+      if (days > 0) {
+        formattedDuration += `${days}d`;
+      }
+      if (remainingHours > 0) {
+        formattedDuration += `${remainingHours}h`;
+      }
+      if (totalMinutes > 0) {
+        formattedDuration += `${totalMinutes}m`;
+      }
+      const toPeriod = require('@jetbrains/youtrack-scripting-api/date-time').toPeriod;
+      return toPeriod(formattedDuration).toString();
+    }
+
+    const totalSpentTime = spaceIssue.spentTimeItems && spaceIssue.spentTimeItems.length > 0
+      ? calculateTotalSpentTime(spaceIssue.spentTimeItems)
+      : (() => {
+        console.log(`No spent time items for issue ${spaceIssue.id} (${spaceIssue.number})`);
+        return null;
+      })();
+
+    let fields = {
+      summary: {
+        type: 'string',
+        value: spaceIssue.title
+      },
+      description: {
+        type: 'text',
+        value: fixedText
+      },
+      author: author,
+      created: spaceIssue.creationTime.iso,
+      State: {
+        type: 'state',
+        value: spaceIssue.status.name
+      },
+      'Due Date': {
+        type: 'date',
+        value: spaceIssue.dueDate ? spaceIssue.dueDate.iso : null
+      },
+      'Spent time': {
+        type: 'period',
+        value: totalSpentTime
+      },
+      comments: convertedComments,
+      tags: convertedTags,
+      attachments: attachments,
+      links: (() => {
+        const allLinks = [];
+        links.concat(issueDescriptionLinks).forEach(linkId => {
+          allLinks.push({
+            linkName: 'relates to',
+            target: linkId
+          });
+        });
+        customLinks.forEach(customLink => {
+          allLinks.push(customLink);
+        });
+        subtaskLinks.forEach(subtaskLink => {
+          allLinks.push(subtaskLink);
+        });
+        return allLinks;
+      })(),
+      watchers: watchers
+    };
+    customFields.forEach(field => {
+      if (field.multiValue) {
+        fields[field._name] = field.value;
+      } else {
+        fields[field._name] = field;
+      }
+    });
+
+    let result = {
+      id: spaceIssue.id,
+      key: `${importState.currentProject.key}-${spaceIssue.number}`,
+      fields: fields
+    };
+
+    if (spaceIssue.assignee) {
+      result.fields.Assignee = Users.getUser(GET, spaceIssue.assignee.id);
+    }
+
+    if (convertedComments.length > 0) {
+      result.fields.updated = convertedComments[convertedComments.length - 1].created;
+      result.fields.updatedBy = convertedComments[convertedComments.length - 1].author;
+    }
+
+    return result;
+  }
+
+  return {
+    toYouTrackIssue
+  };
+}
+
+module.exports = converterFactory;

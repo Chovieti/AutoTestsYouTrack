@@ -1,0 +1,417 @@
+/Û/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const ArticleCache = require('./space-artilce-cache');
+const MarkdownConverter = require('./space-markdown-converter');
+
+let get;
+
+const Users = require('./space-users');
+
+function getConvertedArticles(GET, project, after, top) {
+  get = GET;
+  ArticleCache.setCurrentProject(project);
+  let documents = [];
+  let startDocument = 0;
+  let endDocument = top;
+  const folders = getFolders(project.id, 'root');
+  let articles = [];
+
+  if (ArticleCache.isArticleCacheEmpty()) {
+
+    getDocumentsFromFolders(project.id, folders).forEach(document => documents.push(document));
+    getRootDocuments(project.id).forEach(document => {
+      if (document) {
+        documents.push(document);
+      }
+    });
+
+    let convertedFolders = folders.map(folder => convertFolderToArticle(folder, project));
+    let convertedArticles = documents
+        .map(document => getDocument(project.id, document.id))
+        .filter(document => document)
+        .map(document => convertDocumentToArticle(document, project));
+    articles = convertedArticles.concat(convertedFolders);
+    articles.push(getRootArticle(project));
+
+    ArticleCache.loadSpaceArticlesToCacheId(articles);
+    ArticleCache.loadSpaceArticlesToCacheTitle(articles);
+  }
+
+  articles = ArticleCache.getCachedArticles();
+
+  if (after) {
+    startDocument = articles.map(article => article.id).indexOf(after.id) + 1;
+    endDocument = startDocument + top;
+  }
+
+  return articles
+      .slice(startDocument, endDocument)
+      .map(article => MarkdownConverter.convertMarkdown(article));
+}
+
+function getFolders(projectId, folderId) {
+  let folders = [];
+  let result = get(`/projects/id:${projectId}/documents/folders/${folderId}/subfolders`, {
+    'withArchived': 'false'
+  }).data;
+  if (result.length) {
+    result.forEach(folder => folders.push(folder));
+    result.forEach(folder => {
+      getFolders(projectId, folder.id).forEach(folder => folders.push(folder));
+    });
+  }
+  return folders;
+}
+
+function getFolderDescription(project, folder) {
+  if (folder.cover) {
+    const response = get(`/projects/id:${project.id}/documents/${folder.cover.id}`, {
+      '$fields': 'documentBody(text)'
+    });
+    if (response.documentBody){
+      return response.documentBody.text || null;
+    }
+  }
+  return null;
+}
+
+function getDocumentsFromFolders(projectId, tree) {
+  let documents = [];
+  tree.forEach(node => {
+    let documentsFromFolder = getDocumentsFromFolder(projectId, node.id);
+    if (documentsFromFolder.length) {
+      documentsFromFolder
+          .filter(document => document.bodyType !== 'FILE')
+          .forEach(document => documents.push(document));
+    }
+    let childFolders = node.children;
+    if (childFolders && childFolders.length) {
+      let documentsFromChildrenFolder = getDocumentsFromFolders(projectId, childFolders);
+      if (documentsFromChildrenFolder.length) {
+        documentsFromChildrenFolder.forEach(document => documents.push(document));
+      }
+    }
+  });
+  return documents;
+}
+
+function getRootDocuments(projectId) {
+  return get(`/projects/id:${projectId}/documents/folders/root/documents`, {
+    'withArchived': 'false'
+  }).data;
+}
+
+function getRootFolder(project){
+  return get(`/projects/id:${project.id}/documents/folders/root`);
+}
+
+function getDocumentsFromFolder(projectId, folderId) {
+  return get(`/projects/id:${projectId}/documents/folders/${folderId}/documents`, {
+    'withArchived': 'false'
+  }).data;
+}
+
+function getDocument(projectId, documentId) {
+  return get(`/projects/id:${projectId}/documents/${documentId}`,
+      {'$fields': 'bodyInfo(checklist(totalItemsCount,updatedTime,id,doneItemsCount,name,rootTag,root(id)),fileDocument(body)),id,alias,archived,archivedAt,archivedBy,bodyType,created,createdBy,folderRef,modified,modifiedBy,publicationDetails,title,documentBody,attachments'}
+  );
+}
+
+function convertDocumentToArticle(document, project) {
+  return {
+    id: document.id,
+    key: convertSpaceIdNumber(document.id),
+    fields: convertDocumentFields(document, project),
+    history: []
+  };
+}
+
+function convertFolderToArticle(folder, project) {
+  let article = {
+    id: folder.id,
+    key: convertSpaceIdNumber(folder.id),
+    fields: convertFolderFields(folder, project),
+    history: []
+  };
+  return MarkdownConverter.convertMarkdown(article);
+}
+
+function convertDocumentFields(document, project) {
+  let fields;
+  const attachments = getAttachments(document);
+  fields = {
+    created: document.created.iso,
+    author: document.createdBy.name,
+    summary: getSummary(document),
+    content: getContent(document),
+    updatedBy: document.modifiedBy.name,
+    updated: document.modified.iso,
+    parent: getParent(document),
+    attachments: attachments,
+    comments: [],
+    visibleToUsers: [],
+    visibleToGroups: [],
+    project: project
+  };
+  return fields;
+}
+
+function getRootArticle(project) {
+  let rootFolder = getRootFolder(project);
+  let fields = {
+    created: rootFolder.created.iso,
+    author: 'deleted',
+    summary: rootFolder.name,
+    content: '',
+    parent: null,
+    attachments: [],
+    comments: [],
+    visibleToUsers: getMembers(project.id),
+    visibleToGroups: [],
+    project: project
+  };
+  return {
+    id: rootFolder.id,
+    key: convertSpaceIdNumber(rootFolder.id),
+    fields: fields,
+    history: []
+  };
+}
+
+function convertFolderFields(folder, project) {
+  const attachments = getAttachmentsForFolder(folder, project);
+  let fields;
+  fields = {
+    created: folder.created.iso,
+    author: folder.createdBy ? folder.createdBy.name : 'root',
+    summary: folder.name,
+    content: getFolderContent(folder, attachments, project),
+    updatedBy: folder.updatedBy ? folder.updatedBy.name : null,
+    updated: folder.updated.iso,
+    parent: getParent(folder),
+    attachments: attachments,
+    comments: [],
+    visibleToUsers: [],
+    visibleToGroups: [],
+    project: project
+  };
+  return fields;
+}
+
+// function getTeams(projectId) {
+//   let teams = [];
+//   get(`/projects/id:${projectId}`,
+//     {'$fields': 'memberTeams'}
+//   ).memberTeams.map(team => {
+//     teams.push({
+//       id: team.id,
+//       name: team.name
+//     });
+//   });
+//   return teams;
+// }
+
+function getMembers(projectId) {
+  let members = [];
+  get(`/projects/id:${projectId}`,
+      {'$fields': 'memberProfiles(id,username)'}
+  ).memberProfiles.map(member => {
+    members.push({
+      id: member.id,
+      name: member.username
+    });
+  });
+  return members;
+}
+
+function getSummary(document) {
+  if (document.title === '') {
+    return 'summary';
+  }
+  return document.title;
+}
+
+function getParent(item) {
+  let id = null;
+  if (item.folderRef) {
+    id = item.folderRef.id;
+  } else if (item.parent) {
+    id = item.parent.id;
+  }
+  return id;
+}
+
+function getContent(document) {
+  const type = document.bodyType;
+  let content = '';
+  switch (type) {
+    case 'CHECKLIST':
+      const bodyInfo = document.bodyInfo;
+      if (bodyInfo && bodyInfo.checklist && bodyInfo.checklist.root) {
+        const checklistId = bodyInfo.checklist.id;
+        const planId = bodyInfo.checklist.root.id;
+        try {
+          get(`/checklists/id:${checklistId}/items/id:${planId}`, {
+            '$fields': 'id'
+          });
+          content = getChecklist(checklistId, planId);
+        } catch (e) {
+          console.log('Checklist was deleted');
+        }
+      }
+      break;
+    default:
+      if (document.documentBody && document.documentBody.text) {
+        content = document.documentBody.text;
+      }
+  }
+  return content;
+}
+
+function getFolderContent(folder, attachments, project) {
+  let content = '';
+  let folderDescription = getFolderDescription(project, folder);
+  if (folderDescription){
+    content = folderDescription;
+  }
+  attachments.forEach(attach => {
+    let attachTextInsertion = `\n * [${attach.filename}](${attach.filename})`;
+    content += attachTextInsertion;
+  });
+  return content;
+}
+
+const SUPPORTED_ATTACHMENT_TYPES = ['ImageAttachment', 'VideoAttachment'];
+
+function getAttachments(document) {
+  const attachments = [];
+  const attachNames = [];
+  const type = document.bodyType;
+  switch (type) {
+    case 'TEXT':
+      const documentBody = document.documentBody;
+      if (documentBody && documentBody.attachments && documentBody.attachments.length > 0) {
+        const docAttachments = documentBody.attachments;
+        const convertedAttachments = docAttachments
+            .filter(attachment => attachment.details)
+            .filter(attachment => SUPPORTED_ATTACHMENT_TYPES.includes(attachment.details.className))
+            .map(attachment => ({
+              id: attachment.details.id,
+              filename: setAttachName(attachment.details.name, attachNames),
+              created: document.created.iso,
+              author: Users.getUser(get, getCreatedById(document))
+            }));
+        convertedAttachments.forEach(attachment => attachments.push(attachment));
+      }
+      break;
+    default:
+      break;
+  }
+  return attachments;
+}
+
+function getAttachmentsForFolder(folder, project) {
+  const attachments = [];
+  const attachNames = [];
+
+  const documentsForAttach = getDocumentsFromFolder(project.id, folder.id);
+  const convertedAttachments = documentsForAttach
+      .filter(doc => doc.bodyType === 'FILE')
+      .map(doc => ({
+        id: doc.id,
+        filename: setAttachName(doc.title, attachNames),
+        created: doc.created.iso,
+        author: Users.getUser(get, getCreatedById(folder))
+      }));
+  convertedAttachments.forEach(attachment => attachments.push(attachment));
+
+  return attachments;
+}
+
+function setAttachName(name, attachNames){
+  let i = 0;
+  let divider = '_$->deduplicated_attachment_name<-$_';
+  while (attachNames.includes(name)){
+    name = name.split(divider)[1] || name;
+    i++;
+    name = i + divider + name;
+  }
+  attachNames.push(name);
+  return name;
+}
+
+function getCreatedById(document) {
+  const details = document.createdBy.details;
+  const className = details.className;
+  switch (className) {
+    case 'CApplicationPrincipalDetails':
+      return details.app.id;
+    case 'CAutomationTaskPrincipalDetails':
+      return details.id;
+    case 'CBuiltInServicePrincipalDetails':
+      return details.key;
+    case 'CUserPrincipalDetails':
+      return details.user.id;
+    case 'CUserWithEmailPrincipalDetails':
+      return details.name;
+  }
+}
+
+function getChecklist(checklistId, planId) {
+  let checklist = get(`/checklists/id:${checklistId}/items/id:${planId}`, {
+    '$fields': 'id,checklistId,hasChildren,simpleText,simpleDone,children!,issueProblem,issue(status(resolved,name),id,title)'
+  }).children;
+  return convertPlanToMarkdown(checklist);
+}
+
+function convertPlanToMarkdown(checklistChildren, indent = '') {
+  let markdownChecklist = '';
+  if (checklistChildren && checklistChildren.length) {
+    checklistChildren.forEach(child => {
+      let pick = '* [ ]';
+      let title = child.simpleText;
+      if (child.simpleDone) {
+        pick = '* [x]';
+      } else if (child.issue && child.issue.status.resolved) {
+        pick = '* [x]';
+      }
+      if (!child.simpleText) {
+        title = child.issue.title;
+      }
+      markdownChecklist += `${indent}${pick} ${title} \n`;
+      if (child.children && child.children.length) {
+        markdownChecklist += convertPlanToMarkdown(child.children, indent + '    ');
+      }
+    });
+  }
+  return markdownChecklist;
+}
+
+/* eslint-disable no-bitwise */
+function convertSpaceIdNumber(spaceId) {
+  let id = spaceId.split('').reduce(function (a, b) {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  return Math.pow(Math.pow(id, 2), 0.5).toString();
+}
+
+/* eslint-enable no-bitwise */
+
+module.exports = {
+  getConvertedArticles
+};

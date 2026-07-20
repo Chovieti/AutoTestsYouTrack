@@ -1,0 +1,264 @@
+)f/* eslint license-header/header: "off" */
+/**
+ * Copyright 2013 Fokke Zandbergen
+ * Modified by JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const convertAdfToMarkdown = (node, depth = 0) => {
+  if (!node || typeof node !== 'object') {
+    return '';
+  }
+
+  const CONSTANTS = {
+    MAX_HEADING_LEVEL: 6,
+    DEFAULT_HEADING_LEVEL: 1,
+    LIST_INDENT: '  ',
+    DEFAULT_IMAGE_EXTENSION: '.jpg'
+  };
+
+  const createContentProcessor = (node, depth) =>
+    () => (node.content || []).map(child => convertAdfToMarkdown(child, depth)).join('');
+
+  const createMarkHandlers = () => ({
+    strong: text => `**${text}**`,
+    em: text => `*${text}*`,
+    code: text => text.includes('`') ? `\`\` ${text} \`\`` : `\`${text}\``,
+    strike: text => `~~${text}~~`,
+    underline: text => `<u>${text}</u>`,
+    subsup: (text, mark) => mark.attrs?.type === 'sub' ? `<sub>${text}</sub>` : `<sup>${text}</sup>`,
+    textColor: (text, mark) => `<span style="color: ${mark.attrs?.color}">${text}</span>`,
+    backgroundColor: (text, mark) => `<span style="background-color: ${mark.attrs?.color}">${text}</span>`,
+    link: (text, mark) => `[${text}](${mark.attrs?.href})`,
+    border: text => text
+  });
+
+  const processTextMarks = (node) => {
+    const markHandlers = createMarkHandlers();
+    return (node.marks || []).reduce((text, mark) =>
+      markHandlers[mark.type]?.(text, mark) || text, node.text || '');
+  };
+
+  const processListItems = (node, depth, isOrdered = false) => {
+    const indent = CONSTANTS.LIST_INDENT.repeat(depth);
+    const contentIndent = indent + CONSTANTS.LIST_INDENT;
+    return node.content.map((item, i) => {
+      const children = item.content || [];
+      if (children.length === 0) {
+        const marker = isOrdered ? `${i + 1}. ` : '* ';
+        return `${indent}${marker}`;
+      }
+      const firstChild = convertAdfToMarkdown(children[0], depth + 1).replace(/\n\n$/, '');
+      const marker = isOrdered ? `${i + 1}. ` : '* ';
+      let result = `${indent}${marker}${firstChild}`;
+      for (let j = 1; j < children.length; j++) {
+        const childContent = convertAdfToMarkdown(children[j], depth + 1).replace(/\n\n$/, '');
+        const indentedContent = childContent.split('\n')
+          .map(line => line.trim() ? contentIndent + line : line)
+          .join('\n');
+        result += '\n\n' + indentedContent;
+      }
+      return result;
+    }).join('\n\n') + '\n\n';
+  };
+
+  const processBlockquote = (content) => {
+    return content().replace(/\n\n$/, '').split('\n')
+            .filter(line => line.trim())
+            .map(line => `> ${line}`)
+            .join('\n') + '\n\n';
+  };
+
+  const processTableRow = (node, depth) => {
+    const row = `|${node.content.map(child => convertAdfToMarkdown(child, depth)).join('|')}|\n`;
+    return node.content.some(cell => cell.type === 'tableHeader') ?
+      row + `|${node.content.map(() => ' --- ').join('|')}|\n` : row;
+  };
+
+  const processMediaFileName = (attrs) => {
+    let fileName = attrs.alt || attrs.title;
+    if (!fileName) {
+      fileName = attrs.id || 'image';
+      if (fileName && !fileName.includes('.')) {
+        fileName = fileName + CONSTANTS.DEFAULT_IMAGE_EXTENSION;
+      }
+    }
+    return fileName;
+  };
+
+  const processStatus = (attrs) => {
+    if (!attrs.text) {
+      return '';
+    }
+    return attrs.color ?
+      `<span style="background-color: ${attrs.color}; padding: 2px 4px; border-radius: 3px;">${attrs.text}</span>` :
+      `[${attrs.text}]`;
+  };
+
+  const content = createContentProcessor(node, depth);
+  const attrs = node.attrs || {};
+
+  const processTaskList = (node, depth) => {
+    const indent = CONSTANTS.LIST_INDENT.repeat(depth);
+    return node.content.map(taskItem => {
+      const isChecked = taskItem.attrs?.state === 'DONE';
+      const checkbox = isChecked ? '[x]' : '[ ]';
+      const taskContent = (taskItem.content || [])
+        .map(child => convertAdfToMarkdown(child, depth))
+        .join('')
+        .replace(/\n\n$/, '')
+        .trim();
+      return `${indent}- ${checkbox} ${taskContent}`;
+    }).join('\n') + '\n\n';
+  };
+
+  const nodeHandlers = {
+    'text': () => processTextMarks(node),
+    'hardBreak': () => '  \n',
+    'rule': () => '\n---\n\n',
+    'doc': () => content(),
+    'listItem': () => (node.content || []).map(child => convertAdfToMarkdown(child, depth)).join(''),
+    'mediaGroup': () => content() + '\n\n',
+    'mediaSingle': () => content() + '\n\n',
+    'paragraph': () => content() + '\n\n',
+    'heading': () => '#'.repeat(Math.min(attrs.level || CONSTANTS.DEFAULT_HEADING_LEVEL, CONSTANTS.MAX_HEADING_LEVEL)) + ' ' + content() + '\n\n',
+    'codeBlock': () => `\`\`\`${attrs.language || ''}\n${content()}\n\`\`\`\n\n`,
+    'table': () => content() + '\n',
+    'blockquote': () => processBlockquote(content),
+    'bulletList': () => processListItems(node, depth, false),
+    'orderedList': () => processListItems(node, depth, true),
+    'taskList': () => processTaskList(node, depth),
+    'taskItem': () => (node.content || []).map(child => convertAdfToMarkdown(child, depth)).join(''),
+    'panel': () => `\n| ${(attrs.panelType || 'info').toUpperCase()} |\n| --- |\n| ${content().replace(/\n\n$/, '')} |\n\n`,
+    'tableRow': () => processTableRow(node, depth),
+    'tableCell': () => {
+      const cellContent = content().replace(/\n/g, ' ').trim();
+      const withEmojis = cellContent
+        .replace(/- \[x\]/gi, '✅')
+        .replace(/- \[ \]/g, '⬜');
+      return ` ${withEmojis} `;
+    },
+    'tableHeader': () => ` ${content().replace(/\n/g, ' ').trim()} `,
+    'date': () => attrs.timestamp ? new Date(parseInt(attrs.timestamp)).toLocaleDateString() : '',
+    'emoji': () => attrs.text || (attrs.shortName ? `:${attrs.shortName}:` : ''),
+    'mention': () => `@${attrs.text || attrs.id}`,
+    'status': () => processStatus(attrs),
+    'inlineCard': () => attrs.url ? `[${attrs.title || attrs.url}](${attrs.url})` : '',
+    'media': () => `![${attrs.alt || ''}](${processMediaFileName(attrs)})`,
+    'mediaInline': () => `![${attrs.alt || ''}](${processMediaFileName(attrs)})`,
+    'expand': () => `<details>\n<summary>${attrs.title || 'Details'}</summary>\n\n${content()}</details>\n\n`,
+    'nestedExpand': () => `<details>\n<summary>${attrs.title || 'Details'}</summary>\n\n${content()}</details>\n\n`
+  };
+
+  const handler = nodeHandlers[node.type];
+  if (handler) {
+    return handler();
+  }
+
+  return (node.content || node.children || []).map(child => convertAdfToMarkdown(child, depth)).join('');
+};
+
+
+exports.toMarkdown = function (str) {
+  if (!str) {
+    return str;
+  }
+  const listCounters = {};
+  const processedStr = str
+    .replace(/^[ \t]*(\*+)\s+/gm, function (match, stars) {
+      const depth = stars.length;
+      return '  '.repeat(depth - 1) + '* ';
+    })
+    .replace(/^[ \t]*(#+)\s+/gm, function (match, nums) {
+      const depth = nums.length;
+      const indent = '  '.repeat(depth - 1);
+      Object.keys(listCounters).forEach(key => {
+        if (parseInt(key) > depth) {
+          delete listCounters[key];
+        }
+      });
+      listCounters[depth] = (listCounters[depth] || 0) + 1;
+      return indent + listCounters[depth] + '. ';
+    })
+    .replace(/^(\s*)(\d+\.)\s+(.+?)(\n\n)((?:(?!\n\s*\d+\.|^\s*\d+\.)[^\n]+\n?)+?)(?=\n\s*\d+\.|\n\n\s*\d+\.|$)/gm,
+      function (match, indent, marker, firstLine, separator, continuation) {
+        if (!continuation || continuation.trim() === '') {
+          return match;
+        }
+        const contentIndent = indent + '    ';
+        const indentedContinuation = continuation.split('\n')
+          .filter(line => line.trim())
+          .map(line => contentIndent + line.trim())
+          .join('\n');
+        return indent + marker + ' ' + firstLine + separator + indentedContinuation;
+      });
+  return processedStr
+    // Headers 1-6
+    .replace(/^h([0-6])\.(.*)$/gm, function (match, level, content) {
+      return Array(parseInt(level) + 1).join('#') + content;
+    })
+    // Bold
+    .replace(/\*(\S.*)\*/g, '**$1**')
+    // Italic
+    .replace(/(\s)_(\S.*)_(\s)/g, '$1*$2*$3')
+    // Monospaced text
+    .replace(/\{\{([^}]+)\}\}/g, function (match, content) {
+      if (content.includes('`')) {
+        return '`` ' + content + ' ``';
+      }
+      return '`' + content + '`';
+    })
+    // Citations (buggy)
+    //.replace(/\?\?((?:.[^?]|[^?].)+)\?\?/g, '<cite>$1</cite>')
+    // Inserts
+    .replace(/(\s)\+([^+]*)\+(\s)/g, '$1<ins>$2</ins>$3')
+    // Superscript
+    .replace(/\^([^^]*)\^/g, '<sup>$1</sup>')
+    // Subscript
+    .replace(/~([^~]*)~/g, '<sub>$1</sub>')
+    // Strikethrough
+    .replace(/(\s+)-(\S+.*?\S)-(\s+)/g, '$1~~$2~~$3')
+    // Code Block
+    .replace(/\{code(:([a-z]+))?([:|]?(title|borderStyle|borderColor|borderWidth|bgColor|titleBGColor)=.+?)*\}([^]*?)\n?\{code\}/gm, '```$2$5\n```')
+    // Pre-formatted text
+    .replace(/{noformat}/g, '```')
+    // mailto
+    .replace(/\[mailto:([^|]+?)\]/g, '$1')
+    // Un-named Links
+    .replace(/\[([^|]+?)\](?!\()/g, '<$1>')
+    // Images
+    .replace(/!(.+?)(\|([^=,!]+)=([^,!]+)(,([^=,!]+)=([^,!]+))*?)?(\|thumbnail)?!/g, '![]($1)')
+    // Named Links
+    .replace(/\[(.+?)\|(.+?)\]/g, '[$1]($2)')
+    // Single Paragraph Blockquote
+    .replace(/^bq\.\s+/gm, '> ')
+    // Replace color with span
+    .replace(/\{color:(#?[^}]+)\}((?:(?!\{color(?::|:)\}).)*?)\{color\}/gm, '<span style="color: $1">$2</span>')
+    // Block quotes
+    .replace(/\{quote\}\s*([^]*)\{quote\}/gm, '>$1')
+    // panel into table
+    .replace(/\{panel:title=([^}]*)\}\n?([^]*?)\n?\{panel\}/gm, '\n| $1 |\n| --- |\n| $2 |')
+    // table header
+    .replace(/^[ \t]*((?:\|\|.*?)+\|\|)[ \t]*$/gm, function (match, headers) {
+      let singleBarred = headers.replace(/\|\|/g, '|');
+      return '\n' + singleBarred + '\n' + singleBarred.replace(/\|[^|]+/g, '| --- ');
+    })
+    // remove leading-space of table headers and rows
+    .replace(/^[ \t]*\|/gm, '|')
+    // drop special comment tags that make troubles for clientside sanitizer
+    .replace(/<!--<!\[endif]-->\n?/ig, '');
+
+};
+
+exports.convertAdfToMarkdown = convertAdfToMarkdown;

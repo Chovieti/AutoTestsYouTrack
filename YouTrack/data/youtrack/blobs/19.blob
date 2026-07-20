@@ -1,0 +1,366 @@
+;s/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const timeUtils = require('./time-utils');
+const DEFAULT_TICKET_CACHE_KEY = 'ticketCache';
+const DEFAULT_COMMENT_CACHE_KEY = 'commentCache';
+const BRAND_CHANGES_CACHE_KEY = 'brandChangesCache';
+
+const MIN_COMMENT_LOOKBACK_SECONDS = 60;
+
+const ZendeskCacheInMemory = function (ctxAccess, api, ticketKey, commentKey) {
+
+  const ticketCacheKey = ticketKey || DEFAULT_TICKET_CACHE_KEY;
+  const commentCacheKey = commentKey || DEFAULT_COMMENT_CACHE_KEY;
+
+  function loadTicketCache(interval, projectIdsToImport) {
+    const startSeconds = Math.floor(interval.start / 1000);
+    const endSeconds = Math.ceil(interval.end / 1000);
+    const start = startSeconds * 1000;
+    const end = endSeconds * 1000;
+    console.log(`[Cache] Started incremental tickets loading from ${timeUtils.toInterval(start, end)}`);
+
+    try {
+      let batchStartSeconds = startSeconds;
+      let batchEndSeconds = null;
+      let endOfStream = false;
+      do {
+        const batch = api.GET('/incremental/tickets', {
+          'start_time': `${batchStartSeconds}`
+        });
+
+        endOfStream = batch.end_of_stream;
+        if (batch.tickets && batch.tickets.length) {
+          console.log(`[Cache] Loaded ticket batch: size ${batch.tickets.length}`);
+          const batchTicketsFromInterval = (batchEndSeconds <= endSeconds)
+            ? batch.tickets
+            : batch.tickets.filter(ticket => ticket.generated_timestamp <= endSeconds);
+          appendTicketsToCache(batchTicketsFromInterval, ctxAccess, projectIdsToImport);
+          batchEndSeconds = batch.end_time;
+          const batchStart = batchStartSeconds * 1000;
+          const batchEnd = batchEndSeconds * 1000;
+          const batchSize = batchTicketsFromInterval.length;
+          console.log(`[Cache] Ticket batch from interval: size ${batchSize}, ${timeUtils.toInterval(batchStart, batchEnd)}`);
+        } else {
+          batchEndSeconds = batchStartSeconds;
+          const batchStart = batchStartSeconds * 1000;
+          console.log(`[Cache] Ticket batch from interval: size 0, ${timeUtils.toInterval(batchStart, end)}`);
+        }
+        batchStartSeconds = batchEndSeconds;
+      } while (!endOfStream && batchEndSeconds <= endSeconds);
+    } catch (e) {
+      console.error('ERROR: ' + e.message);
+      const message = 'Failed to load next incremental ticket batch';
+      console.error(message, e.stack);
+      throw e;
+    }
+    console.log('[Cache] Finished incremental tickets loading');
+  }
+
+  function loadCommentCache(interval, projectIdsToImport) {
+    const ticketCache = ctxAccess.getObject(ticketCacheKey) || {};
+    const ticketIdsToImport = Object.values(ticketCache)
+        .map(projectTicketsObject => Object.keys(projectTicketsObject)).flat();
+    console.log(`[Cache] Cached ticket ids [${ticketIdsToImport.join(', ')}]`);
+    const intervalStartSeconds = Math.floor(interval.start / 1000);
+    const allCachedTickets = Object.values(ticketCache)
+        .flatMap(projectTickets => Object.values(projectTickets));
+    const minAllowedStartSeconds = intervalStartSeconds - MIN_COMMENT_LOOKBACK_SECONDS;
+    let minCreatedAtSeconds = intervalStartSeconds;
+    allCachedTickets.forEach(ticket => {
+      if (ticket.created_at) {
+        const createdAtSeconds = Math.floor(new Date(ticket.created_at).getTime() / 1000);
+        if (createdAtSeconds < minCreatedAtSeconds) {
+          minCreatedAtSeconds = createdAtSeconds;
+        }
+      }
+    });
+    const startSeconds = Math.max(minCreatedAtSeconds, minAllowedStartSeconds);
+    const endSeconds = Math.ceil(interval.end / 1000);
+    const start = startSeconds * 1000;
+    const end = endSeconds * 1000;
+    console.log(`[Cache] Started incremental comments loading from ${timeUtils.toInterval(start, end)}`);
+
+    try {
+      let endOfStream = false;
+      let batchStartSeconds = startSeconds;
+      let batchEndSeconds = null;
+      do {
+        const batch = api.GET('/incremental/ticket_events', {
+          'start_time': `${batchStartSeconds}`,
+          include: 'comment_events'
+        });
+
+        endOfStream = batch.end_of_stream;
+        if (batch.ticket_events && batch.ticket_events.length) {
+          console.log(`[Cache] Loaded comment batch: size ${batch.ticket_events.length}`);
+          const batchEventsFromInterval = (batchEndSeconds <= endSeconds)
+            ? batch.ticket_events
+            : batch.ticket_events.filter(ticket => ticket.generated_timestamp <= endSeconds);
+
+          batchEndSeconds = batch.end_time;
+          const batchStart = batchStartSeconds * 1000;
+          const batchEnd = batchEndSeconds * 1000;
+          const batchSize = batchEventsFromInterval.length;
+          console.log(`[Cache] Comment batch from interval: size ${batchSize}, ${timeUtils.toInterval(batchStart, batchEnd)}`);
+          const commentsByTickets = extractCommentsByTickets(batchEventsFromInterval, ticketIdsToImport, projectIdsToImport);
+          appendCommentsToCache(commentsByTickets, ctxAccess);
+          const brandChanges = extractBrandChanges(batchEventsFromInterval, projectIdsToImport);
+          appendBrandChangesToCache(brandChanges, ctxAccess, projectIdsToImport);
+        } else {
+          batchEndSeconds = batchStartSeconds;
+          const batchStart = batchStartSeconds * 1000;
+          console.log(`[Cache] Comment batch from interval: size 0, ${timeUtils.toInterval(batchStart, end)}`);
+        }
+        batchStartSeconds = batchEndSeconds;
+      } while (!endOfStream && batchEndSeconds <= endSeconds);
+    } catch (e) {
+      const message = 'Failed to load next incremental ticket comment batch';
+      console.error(message, e.stack);
+      throw e;
+    }
+    console.log('[Cache] Finished incremental comments loading');
+  }
+
+  function extractCommentsByTickets(events, ticketIdsToImport, projectIdsToImport) {
+    return events.reduce((commentsByTickets, event) => {
+      const ticketId = event.ticket_id.toString();
+      if (ticketIdsToImport.includes(ticketId) || isTicketCreationInProject(event, projectIdsToImport)) {
+        const newComments = extractCommentsFromEvent(event);
+        if (newComments.length > 0) {
+          const prevComments = commentsByTickets[ticketId];
+          commentsByTickets[ticketId] = prevComments ? prevComments.concat(newComments) : newComments;
+        }
+      }
+      return commentsByTickets;
+    }, {});
+  }
+
+  function extractBrandChanges(events, projectIdsToImport) {
+    const brandChanges = {};
+    if (!projectIdsToImport) {
+      return brandChanges;
+    }
+    const projectIdStrings = projectIdsToImport.map(id => id.toString());
+    events.forEach(event => {
+      const ticketId = event.ticket_id.toString();
+      event.child_events
+        .filter(e => e.event_type === 'Change' && e.field_name === 'brand_id')
+        .forEach(change => {
+          const previousBrandId = change.previous_value ? change.previous_value.toString() : null;
+          const newBrandId = change.value ? change.value.toString() : null;
+          if (!previousBrandId || !newBrandId || previousBrandId === newBrandId) {
+            return;
+          }
+          const wasInImported = projectIdStrings.includes(previousBrandId);
+          const nowInImported = projectIdStrings.includes(newBrandId);
+          if (wasInImported && !nowInImported) {
+            brandChanges[ticketId] = {previousBrandId, newBrandId};
+            console.log(`[Cache] Detected brand move out for ticket ${ticketId}: ${previousBrandId} -> ${newBrandId}`);
+          } else if (nowInImported) {
+            brandChanges[ticketId] = {previousBrandId, newBrandId};
+            console.log(`[Cache] Ticket ${ticketId} returned to imported brand ${newBrandId}`);
+          }
+        });
+    });
+    return brandChanges;
+  }
+
+  function appendBrandChangesToCache(brandChanges, ctxAccess, projectIdsToImport) {
+    if (!brandChanges || Object.keys(brandChanges).length === 0) {
+      return;
+    }
+    const projectIdStrings = (projectIdsToImport || []).map(id => id.toString());
+    const cache = ctxAccess.getObject(BRAND_CHANGES_CACHE_KEY) || {};
+    const ticketCache = ctxAccess.getObject(ticketCacheKey) || {};
+    let ticketCacheModified = false;
+    Object.keys(brandChanges).forEach(ticketId => {
+      const change = brandChanges[ticketId];
+      const previousBrandTickets = ticketCache[change.previousBrandId];
+      if (projectIdStrings.includes(change.newBrandId)) {
+        delete cache[ticketId];
+        if (previousBrandTickets && previousBrandTickets[ticketId] && previousBrandTickets[ticketId].needsFetch) {
+          delete previousBrandTickets[ticketId];
+          ticketCacheModified = true;
+        }
+      } else {
+        cache[ticketId] = change;
+        const branchTickets = previousBrandTickets || {};
+        if (!branchTickets[ticketId]) {
+          branchTickets[ticketId] = {
+            id: parseInt(ticketId),
+            brand_id: parseInt(change.previousBrandId),
+            needsFetch: true
+          };
+          ticketCache[change.previousBrandId] = branchTickets;
+          ticketCacheModified = true;
+          console.log(`[Cache] Added placeholder for moved-out ticket ${ticketId} in brand ${change.previousBrandId}`);
+        }
+      }
+    });
+    ctxAccess.setObject(BRAND_CHANGES_CACHE_KEY, cache);
+    if (ticketCacheModified) {
+      ctxAccess.setObject(ticketCacheKey, ticketCache);
+    }
+    console.log(`[Cache] Cached ${Object.keys(cache).length} total brand changes`);
+  }
+
+  function extractCommentsFromEvent(event) {
+    const comments = [];
+    const brandId = event.child_events.find(event => isTicketCreation(event))?.brand_id;
+    event.child_events
+       .filter(event => event.event_type === 'Comment')
+       .forEach(comment => {
+         if (brandId) {
+           comment.brand_id = brandId;
+         }
+         comments.push(comment);
+       });
+    return comments;
+  }
+
+  function isProjectToImport(projectId, projectIdsToImport) {
+    return projectIdsToImport === undefined || projectIdsToImport.includes(projectId);
+  }
+
+  function isTicketCreation(event) {
+    return event.event_type === 'Create' &&
+        event.brand_id !== undefined &&
+        event.brand_id !== null;
+  }
+
+  function isTicketCreationInProject(event, projectIdsToImport) {
+    return event.child_events
+        .some(event => isTicketCreation(event) && isProjectToImport(event.brand_id.toString(), projectIdsToImport));
+  }
+
+  function withRemovedNullFields(ticket) {
+    ticket.custom_fields = ticket.custom_fields.filter(field => field.value !== null);
+    return ticket;
+  }
+
+  function countByProject(tickets) {
+    return tickets.reduce((countsByProject, ticket) => {
+      const projectId = ticket.brand_id.toString();
+      countsByProject[projectId] = (countsByProject[projectId] || 0) + 1;
+      return countsByProject;
+    }, {});
+  }
+
+  function countTicketsToImport(ticketsCountByProject, projectIdsToImport) {
+    if (projectIdsToImport === undefined) {
+      return Object.values(ticketsCountByProject).reduce((sum, count) => sum + count, 0);
+    } else {
+      return projectIdsToImport.reduce((sum, projectId) => sum + (ticketsCountByProject[projectId] || 0), 0);
+    }
+  }
+
+  function getTicketsByProjectToImport(tickets, projectIdsToImport) {
+    return tickets
+      .reduce((projectsMap, ticket) => {
+        const projectId = ticket.brand_id.toString();
+        if (isProjectToImport(projectId, projectIdsToImport)) {
+          const projectTickets = projectsMap[projectId];
+          if (!projectTickets) {
+            projectsMap[projectId] = [withRemovedNullFields(ticket)];
+          } else {
+            projectTickets.push(withRemovedNullFields(ticket));
+          }
+        }
+        return projectsMap;
+      }, {});
+  }
+
+  function appendTicketsToCache(tickets, ctxAccess, projectIdsToImport) {
+    if (!tickets) {return;}
+    const ticketCache = ctxAccess.getObject(ticketCacheKey) || {};
+    const ticketsNumberByProject = countByProject(tickets);
+    const projectsInBatch = JSON.stringify(Object.keys(ticketsNumberByProject));
+    const takeAllProjects = projectIdsToImport === undefined;
+    const projectsInfo = takeAllProjects ? 'all' : JSON.stringify(projectIdsToImport);
+    console.log(`[Cache] Projects captured in batch: ${projectsInBatch}, projects to import: ${projectsInfo}`);
+
+    const batchToImportSize = countTicketsToImport(ticketsNumberByProject, projectIdsToImport);
+    console.log(`[Cache] Tickets to cache in batch: ${batchToImportSize}`);
+
+    const ticketsByProjectToImport = getTicketsByProjectToImport(tickets, projectIdsToImport);
+    Object.keys(ticketsByProjectToImport).forEach(projectId => {
+      const projectTicketsObject = ticketCache[projectId] || {};
+      const newTickets = ticketsByProjectToImport[projectId];
+      newTickets.forEach(ticket => {
+        const ticketId = ticket.id.toString();
+        projectTicketsObject[ticketId] = ticket;
+      });
+      ticketCache[projectId] = projectTicketsObject;
+      console.log(`[Cache] Cached ${newTickets.length || 0} tickets for project ${projectId}`);
+    });
+    ctxAccess.setObject(ticketCacheKey, ticketCache);
+  }
+
+  function appendCommentsToCache(ticketIdToComments, ctxAccess) {
+    if (ticketIdToComments) {
+      let newTicketCommentSize = 0;
+      const commentCache = ctxAccess.getObject(commentCacheKey) || {};
+      Object.keys(ticketIdToComments).forEach(ticketId => {
+        const prevComments = commentCache[ticketId];
+        const newComments = ticketIdToComments[ticketId];
+        commentCache[ticketId] = prevComments ? prevComments.concat(newComments) : newComments;
+        newTicketCommentSize += newComments.length || 0;
+      });
+      ctxAccess.setObject(commentCacheKey, commentCache);
+      console.log(`[Cache] Cached ${newTicketCommentSize} comments`);
+    }
+  }
+
+  function load(interval, projectIdsToImport) {
+    try {
+      loadTicketCache(interval, projectIdsToImport);
+      loadCommentCache(interval, projectIdsToImport);
+    } catch (e) {
+      console.info('[Cache] Resetting loaded cache');
+      reset();
+      throw e;
+    }
+  }
+
+  function reset() {
+    ctxAccess.setParam(ticketCacheKey, null);
+    ctxAccess.setParam(commentCacheKey, null);
+    ctxAccess.setParam(BRAND_CHANGES_CACHE_KEY, null);
+  }
+
+  function getTicketCache() {
+    return ctxAccess.getObject(ticketCacheKey);
+  }
+
+  function getCommentCache() {
+    return ctxAccess.getObject(commentCacheKey);
+  }
+
+  function getBrandChangesCache() {
+    return ctxAccess.getObject(BRAND_CHANGES_CACHE_KEY);
+  }
+
+  return {
+    load,
+    reset,
+    getTicketCache,
+    getCommentCache,
+    getBrandChangesCache
+  };
+};
+
+module.exports = ZendeskCacheInMemory;

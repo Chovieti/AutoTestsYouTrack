@@ -1,0 +1,485 @@
+C2const dateTime = require('@jetbrains/youtrack-scripting-api/date-time');
+const {resolveUser} = require('./util');
+
+const ENUM_SINGLE = 'enum[1]';
+const ENUM_MULTI = 'enum[*]';
+const OWNED_FIELD_SINGLE = 'ownedField[1]';
+const OWNED_FIELD_MULTI = 'ownedField[*]';
+const VERSION_SINGLE = 'version[1]';
+const VERSION_MULTI = 'version[*]';
+const BUILD_SINGLE = 'build[1]';
+const BUILD_MULTI = 'build[*]';
+const STATE = 'state[1]';
+const USER_SINGLE = 'user[1]';
+const USER_MULTI = 'user[*]';
+const GROUP_SINGLE = 'group[1]';
+const GROUP_MULTI = 'group[*]';
+const DATE = 'date';
+const DATE_TIME = 'date and time';
+const PERIOD = 'period';
+const SINGLE_BUNDLE_TYPES = [ENUM_SINGLE, OWNED_FIELD_SINGLE, VERSION_SINGLE, BUILD_SINGLE, STATE];
+const MULTI_BUNDLE_TYPES = [ENUM_MULTI, OWNED_FIELD_MULTI, VERSION_MULTI, BUILD_MULTI];
+const DATE_FORMAT = 'yyyy-MM-dd';
+const DATE_TIME_FORMAT = 'yyyy-MM-dd HH:mm:ss';
+
+/**
+ * Validates and resolves raw custom field values against the given project schema.
+ *
+ * Takes a plain object of field name -> value and returns an object containing:
+ *   {
+ *     errors: string[],                 // validation errors (unknown field, value not found, bad format, etc.)
+ *     resolved: { [name: string]: {     // only successfully resolved fields are included here
+ *       field: any,                     // YouTrack field object (to be used by applyIssueFields)
+ *       type: string,                   // YouTrack field type name
+ *       value: any                      // Resolved, typed value ready to be applied to an issue
+ *     }}
+ *   }
+ *
+ * Use this function before applyIssueFields. Pass its result to applyIssueFields to actually update an issue.
+ * Example:
+ *   const validation = validateIssueFields(project, { Priority: 'Minor', Assignee: 'john.doe' });
+ *   if (validation.errors.length) {
+ *     throw new Error('Cannot apply fields: ' + validation.errors.join('\n'));
+ *   }
+ *   const applyResult = applyIssueFields(issue, validation, ctx.currentUser);
+ */
+function validateIssueFields(project, fields) {
+  const errors = [];
+  const resolved = {};
+
+  if (!fields) {
+    return { errors, resolved };
+  }
+
+  for (const [name, rawValue] of Object.entries(fields)) {
+    const field = project.findFieldByName(name);
+    if (!field) {
+      errors.push(`Issue field '${name}' not found`);
+      continue;
+    }
+    const type = field.typeName;
+
+    // Bundles
+    if (SINGLE_BUNDLE_TYPES.includes(type)) {
+      const fv = field.findValueByName(rawValue);
+      if (!fv) {
+        errors.push(`Issue field ${name} does not include ${rawValue}`);
+        continue;
+      }
+      resolved[name] = { field, type, value: fv };
+      continue;
+    }
+    if (MULTI_BUNDLE_TYPES.includes(type)) {
+      if (!rawValue || !rawValue.forEach) {
+        errors.push(`Issue field ${name} expects an array of values`);
+        continue;
+      }
+      const values = [];
+      const missing = [];
+      rawValue.forEach(v => {
+        const fv = field.findValueByName(v);
+        if (!fv) {
+          missing.push(v);
+          return;
+        }
+        values.push(fv);
+      });
+      if (missing.length) {
+        errors.push(`Issue field ${name} has no value(s): ${missing.join(', ')}`);
+        continue;
+      }
+      resolved[name] = { field, type, value: values };
+      continue;
+    }
+
+    // Users
+    if (type === USER_SINGLE) {
+      try {
+        const uv = resolveUser(rawValue);
+        resolved[name] = {field, type, value: uv};
+      } catch (e) {
+        errors.push(`Cannot find user ${rawValue} for ${name}: ${e.message}`);
+        continue;
+      }
+      continue;
+    }
+    if (type === USER_MULTI) {
+      if (!rawValue || !rawValue.forEach) {
+        errors.push(`Issue field ${name} expects an array of logins, for example, ["john.doe", "jane.smith"]`);
+        continue;
+      }
+      const users = [];
+      const missingUsers = [];
+      rawValue.forEach(v => {
+        try {
+          const uv = resolveUser(v);
+          users.push(uv);
+        } catch (e) {
+          missingUsers.push(v);
+        }
+      });
+      if (missingUsers.length) {
+        errors.push(`Users not found for ${name}: ${missingUsers.join(', ')}`);
+        continue;
+      }
+      resolved[name] = { field, type, value: users };
+      continue;
+    }
+
+    // Groups
+    if (type === GROUP_SINGLE) {
+      const gv = field.findValueByName(rawValue);
+      if (!gv) {
+        errors.push(`Group ${rawValue} cannot be set to the ${name} issue field`);
+        continue;
+      }
+      resolved[name] = { field, type, value: gv };
+      continue;
+    }
+    if (type === GROUP_MULTI) {
+      if (!rawValue || !rawValue.forEach) {
+        errors.push(`Issue field ${name} expects an array of groups, for example, ["Developers", "QA"]`);
+        continue;
+      }
+      const groups = [];
+      const missingGroups = [];
+      rawValue.forEach(v => {
+        const gv = field.findValueByName(v);
+        if (!gv) {
+          missingGroups.push(v);
+          return;
+        }
+        groups.push(gv);
+      });
+      if (missingGroups.length) {
+        errors.push(`Groups not found for ${name}: ${missingGroups.join(', ')}`);
+        continue;
+      }
+      resolved[name] = { field, type, value: groups };
+      continue;
+    }
+
+    // Date
+    if (type === DATE) {
+      let ts = rawValue;
+      if (ts === null || ts === '') {
+        errors.push(`Issue field ${name} expects a ${type} value in ${DATE_FORMAT} format. Example: "2025-08-20"`);
+        continue;
+      }
+      try {
+        ts = dateTime.parse(String(ts), DATE_FORMAT);
+      } catch (e) {
+        errors.push(`Cannot parse ${type} for ${name}: ${rawValue}. Expected format: "${DATE_FORMAT}". Example: "2025-08-20"`);
+        continue;
+      }
+      resolved[name] = { field, type, value: ts };
+      continue;
+    }
+
+    // Date and time
+    if (type === DATE_TIME) {
+      const format = DATE_TIME_FORMAT;
+      let ts = rawValue;
+      if (ts === null || ts === '') {
+        errors.push(`Issue field ${name} expects a ${type} value in ${format} format. Example: "2025-08-20 13:42:55"`);
+        continue;
+      }
+      try {
+        ts = dateTime.parse(String(ts), format);
+      } catch (e) {
+        errors.push(`Cannot parse ${type} for ${name}: ${rawValue}. Expected format: "${format}". Example: "2025-08-20 13:42:55"`);
+        continue;
+      }
+      resolved[name] = { field, type, value: ts };
+      continue;
+    }
+
+    // Period
+    if (type === PERIOD) {
+      const v = rawValue;
+      if (v === null || v === '') {
+        errors.push(`Issue field ${name} expects a period value. Examples: "2w 3d", "1h 20m", "45m"`);
+        continue;
+      }
+      const s = String(v).trim();
+      const periodRe = /^(?:\d+\s*w\s*)?(?:\d+\s*d\s*)?(?:\d+\s*h\s*)?(?:\d+\s*m\s*)?$/i;
+      const hasUnit = /\d+\s*[wdhm]/i.test(s);
+      if (!(typeof v === 'number') && (!hasUnit || !periodRe.test(s))) {
+        errors.push(`Invalid period format for ${name}: ${v}. Use only w, d, h, m in descending order. Examples: "2w 3d", "1h 20m", "45m"`);
+        continue;
+      }
+      try {
+        const period = typeof v === 'number' ? dateTime.toPeriod(v) : dateTime.toPeriod(s);
+        resolved[name] = { field, type, value: period };
+        continue;
+      } catch (e) {
+        errors.push(`Cannot parse period for ${name}: ${v}. Examples: "2w 3d", "1h 20m", "45m"`);
+        continue;
+      }
+    }
+
+    // Fallback: set as-is
+    resolved[name] = { field, type, value: rawValue };
+  }
+
+  return { errors, resolved };
+}
+
+/**
+ * Applies previously validated custom fields to the issue.
+ *
+ * It is expected that you first call validateIssueFields(project, fields) and pass its result here.
+ * This function will try to apply only the resolved fields from validation. It reports which fields were updated
+ * and which were not, along with detailed errors explaining why some fields were not applied.
+ *
+ * Returns an object with the following shape:
+ *   {
+ *     errors: string[],                // human-readable error messages for not-applied fields
+ *     updatedFields: string[],         // field names that were successfully updated on the issue
+ *     notUpdatedFields: string[]       // field names that were requested but not applied due to errors/permissions
+ *   }
+ *
+ * Example:
+ *   const validation = validateIssueFields(project, { Priority: 'Minor', Assignee: 'john.doe' });
+ *   const result = applyIssueFields(issue, validation, ctx.currentUser);
+ *   if (result.errors.length) {
+ *     // Some fields were not applied
+ *     console.warn(result.errors.join('\n'));
+ *   }
+ *   console.log('Updated:', result.updatedFields);
+ *   console.log('Not updated:', result.notUpdatedFields);
+ */
+function applyIssueFields(issue, validation, currentUser) {
+  const errors = [];
+  const updatedFields = [];
+  const notUpdatedFields = [];
+  const resolved = (validation && validation.resolved) || {};
+
+  for (const [name, info] of Object.entries(resolved)) {
+    const { field, type, value } = info;
+
+    if (!issue.canBeWrittenBy(name, currentUser)) {
+      errors.push(`Issue field '${name}' is read-only for the current user`);
+      notUpdatedFields.push(name);
+      continue;
+    }
+
+    // Bundles
+    if (SINGLE_BUNDLE_TYPES.includes(type)) {
+      if (!field.isValuePermittedInIssue(issue, value)) {
+        let message = `Issue field '${name}' value ${value && value.name ? value.name : value} is not allowed for issue ${issue.id}.`;
+        const possibleValues = field.getPossibleValuesForIssue(issue);
+        if (possibleValues && possibleValues.size <= 50) {
+          message += ` Possible values: ${possibleValues.map(v => v.name).join(', ')}`;
+        }
+        errors.push(message);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      issue.fields[name] = value;
+      updatedFields.push(name);
+      continue;
+    }
+    if (MULTI_BUNDLE_TYPES.includes(type)) {
+      const notPermitted = [];
+      value.forEach(v => { if (!field.isValuePermittedInIssue(issue, v)) { notPermitted.push(v.name || v); } });
+      if (notPermitted.length) {
+        errors.push(`Issue field ${name} has value(s) not allowed for issue ${issue.id}: ${notPermitted.join(', ')}`);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      const issueField = issue.fields[name];
+      issueField.clear();
+      value.forEach(v => issueField.add(v));
+      updatedFields.push(name);
+      continue;
+    }
+
+    // Users
+    if (type === USER_SINGLE) {
+      if (!field.isValuePermittedInIssue(issue, value)) {
+        errors.push(`User ${(value && value.login) || value} is not allowed for issue ${issue.id}.`);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      issue.fields[name] = value;
+      updatedFields.push(name);
+      continue;
+    }
+    if (type === USER_MULTI) {
+      const notPermittedUsers = [];
+      value.forEach(u => { if (!field.isValuePermittedInIssue(issue, u)) { notPermittedUsers.push(u.login || u); } });
+      if (notPermittedUsers.length) {
+        errors.push(`Users not permitted for ${name} in issue ${issue.id}: ${notPermittedUsers.join(', ')}`);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      const issueField = issue.fields[name];
+      issueField.clear();
+      value.forEach(u => issueField.add(u));
+      updatedFields.push(name);
+      continue;
+    }
+
+    // Groups
+    if (type === GROUP_SINGLE) {
+      if (field.isValuePermittedInIssue && !field.isValuePermittedInIssue(issue, value)) {
+        errors.push(`Group ${(value && value.name) || value} is not allowed for issue ${issue.id}.`);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      issue.fields[name] = value;
+      updatedFields.push(name);
+      continue;
+    }
+    if (type === GROUP_MULTI) {
+      const notPermittedGroups = [];
+      value.forEach(g => { if (field.isValuePermittedInIssue && !field.isValuePermittedInIssue(issue, g)) { notPermittedGroups.push(g.name || g); } });
+      if (notPermittedGroups.length) {
+        errors.push(`Groups not permitted for ${name} in issue ${issue.id}: ${notPermittedGroups.join(', ')}`);
+        notUpdatedFields.push(name);
+        continue;
+      }
+      const issueField = issue.fields[name];
+      issueField.clear();
+      value.forEach(g => issueField.add(g));
+      updatedFields.push(name);
+      continue;
+    }
+
+    // Dates and Periods (and any other types)
+    issue.fields[name] = value;
+    updatedFields.push(name);
+  }
+
+  // Set defaults after applying fields
+  issue.setDefaultFieldValues();
+
+  return { errors, updatedFields, notUpdatedFields };
+}
+
+/**
+ * Extracts and returns an object of custom fields from the provided issue based on visibility, access and filter.
+ *
+ * @param {Object} issue - The issue object containing project fields to be processed.
+ * @param {Object} currentUser - The current user object to check permissions and visibility.
+ * @param {Array<string>} [filter] - An optional array of field names to include in the result. If not provided, all fields are included. Example: ['Priority', 'Assignee']
+ * @return {Object} An object containing the custom fields from the issue, where each key represents the field name and the value represents its presentation value.
+ */
+function getFields(issue, currentUser, filter) {
+  const fields = {};
+  const lowercaseFilter = filter ? filter.map(f => f.toLowerCase()) : null;
+  issue.project.fields.forEach(f => {
+    const isRequiredInResult = lowercaseFilter ? lowercaseFilter.includes(f.name?.toLowerCase()) : true;
+    if (isRequiredInResult && f.isVisibleInIssue(issue) && issue.canBeReadBy(f.name, currentUser) && issue[f.name] !== null) {
+      const value = f.getValuePresentation(issue);
+      if (value === f.nullValueText) {
+        if (f.typeName?.includes('[*]')) {
+          fields[f.name] = [];
+        } else {
+          fields[f.name] = null;
+        }
+      } else {
+        fields[f.name] = f.getValuePresentation(issue);
+      }
+    }
+  });
+  return fields;
+}
+
+function getFieldsSchema(project, currentUser) {
+  const MAX_ENUM_SIZE = 50;
+  const properties = {};
+  const required = [];
+
+  const isMulti = (typeName) => MULTI_BUNDLE_TYPES.includes(typeName);
+  const baseJsonType = (typeName) => {
+    switch (typeName) {
+      case 'integer':
+        return 'integer';
+      case 'float':
+        return 'number';
+      default:
+        return 'string';
+    }
+  };
+
+  const collectEnum = (field) => {
+    const values = field && field.values;
+    if (!values || values.isEmpty()) return null;
+    const size = values.size;
+    if (size !== null && size > MAX_ENUM_SIZE) return null;
+    return values.map(v => v.name);
+  };
+
+  const collectEnumExamples = (field) => {
+    const values = field && field.values;
+    if (!values || values.isEmpty()) return "";
+    const examples = new Set();
+    examples.add(values.first().name);
+    examples.add(values.last().name);
+    return examples.size > 1 ? `. Example: ${Array.from(examples).join(', ')}` : "";
+  };
+
+  const descriptionByType = (typeName, field) => {
+    switch (typeName) {
+      case VERSION_SINGLE: return 'Version' + collectEnumExamples(field);
+      case VERSION_MULTI: return 'Array of versions' + collectEnumExamples(field);
+      case BUILD_SINGLE: return 'Build number' + collectEnumExamples(field);
+      case BUILD_MULTI: return 'Build numbers' + collectEnumExamples(field);
+      case USER_SINGLE: return 'Login. Example: "john.doe"';
+      case USER_MULTI: return 'Array of logins. Example: ["john.doe", "jane.smith"]';
+      case GROUP_SINGLE: return 'Group name. Example: "developers"';
+      case GROUP_MULTI: return 'Array of group names. Example: ["developers", "qa"]';
+      case DATE: return `Date in yyyy-MM-dd format in the time zone for the current user (${currentUser.timeZone}). Example: '2025-08-20'`;
+      case DATE_TIME: return `Date and time in 'yyyy-MM-dd HH:mm:ss' format, in the time zone for the current user (${currentUser.timeZone}). Example: '2025-08-20 13:42:55'`;
+      case PERIOD: return "Period in string representation (w d h m), e.g. '1w 2d 3h 10m', '2h 30m', '15m'";
+      default: return null;
+    }
+  };
+
+  const shouldEnumerate = (typeName) => SINGLE_BUNDLE_TYPES.includes(typeName) || MULTI_BUNDLE_TYPES.includes(typeName);
+
+  project.fields.forEach((f) => {
+    const name = f.name;
+    const typeName = f.typeName;
+    const prop = {};
+    const desc = descriptionByType(typeName);
+    if (desc) prop.description = desc;
+    if (isMulti(typeName)) {
+      prop.type = 'array';
+      const item = { type: baseJsonType(typeName) };
+      if (shouldEnumerate(typeName)) {
+        const en = collectEnum(f);
+        if (en) item.enum = en;
+      }
+      prop.items = item;
+    } else {
+      prop.type = baseJsonType(typeName);
+      if (shouldEnumerate(typeName)) {
+        const en = collectEnum(f);
+        if (en) prop.enum = en;
+      }
+    }
+    if (f.isReadonly) {
+      prop.readOnly = true;
+    }
+    if (f.isRequired) {
+      required.push(name);
+    }
+    properties[name] = prop;
+  });
+
+  return {
+    type: 'object',
+    properties,
+    required
+  };
+}
+
+module.exports = {
+  validateIssueFields,
+  applyIssueFields,
+  getFields,
+  getFieldsSchema,
+};

@@ -1,0 +1,752 @@
+U[/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const EnumReferenceClass = Java.type('jetbrains.youtrack.scripts.wrappers.EnumReference');
+const PersistentEntityWrapperClass = Java.type('jetbrains.youtrack.scripts.wrappers.PersistentEntityWrapper');
+const MutableIterableWrapperClass = Java.type('jetbrains.youtrack.scripts.wrappers.MutableIterableWrapper');
+const ScriptingSequenceClass = Java.type('jetbrains.youtrack.api.scripts.ScriptingSequence');
+const YBundleCustomFieldClass = Java.type('jetbrains.youtrack.scripts.meta.YBundleCustomField');
+const YCustomFieldClass = Java.type('jetbrains.youtrack.scripts.meta.YCustomField');
+const YFieldClass = Java.type('jetbrains.youtrack.scripts.meta.YField');
+const YEnumElementClass = Java.type('jetbrains.youtrack.scripts.meta.YEnumElement');
+
+const identifyingProperties = {
+  'Issue': 'id',
+  'User': 'login'
+};
+const Iterator = function (iterableWrapper, yField) {
+  this._iterator = iterableWrapper.iterator();
+  Object.defineProperty(this, 'yField', {value: yField});
+};
+Iterator.prototype.next = function () {
+  let hasNext = this._iterator.hasNext();
+  return {
+    done: !hasNext,
+    value: hasNext ? wrap(this._iterator.next(), this.yField, this.enclosingEntity) : null
+  };
+};
+
+const CanonicalIterator = function (iterableWrapper, yField) {
+  this._iterator = iterableWrapper.iterator();
+  Object.defineProperty(this, 'yField', {value: yField});
+};
+CanonicalIterator.prototype.next = function () {
+  return wrap(this._iterator.next(), this.yField, this.enclosingEntity);
+};
+CanonicalIterator.prototype.hasNext = function () {
+  return this._iterator.hasNext();
+};
+
+const ImmutableIterableWW = function (iterableWrapperOrGetter, yField, enclosingEntity, linkName) {
+  const getter = typeof iterableWrapperOrGetter === 'function' ? iterableWrapperOrGetter : (() => iterableWrapperOrGetter);
+  let iterableWrapper = null;
+  Object.defineProperty(this, '_wrapped', {
+    get: () => {
+      if (!iterableWrapper) {
+        iterableWrapper = getter();
+      }
+      return iterableWrapper;
+    }
+  });
+  Object.defineProperty(this, 'yField', {value: yField});
+  Object.defineProperty(this, 'enclosingEntity', {value: enclosingEntity});
+  Object.defineProperty(this, 'linkName', {value: linkName});
+
+  let def = function (obj, name) {
+    let w = obj._wrapped;
+    Object.defineProperty(obj, name, {
+      value: function () {
+        return new Iterator(w, yField);
+      }
+    });
+  };
+  def(this, 'entries');
+  def(this, 'values');
+
+  Object.defineProperty(this, 'size', {
+    get: function () {
+      return this._wrapped.size();
+    }
+  });
+
+  this.toString = function () {
+    let c = 0;
+    let iter = this.entries();
+    let next;
+    let strings = [];
+    let size = this.size;
+    while (c++ < 100 && (next = iter.next()) && !next.done) {
+      strings.push(next.value && next.value.toShortString ? next.value.toShortString() : next.value);
+    }
+    if (c === 100) {
+      strings.push('the Set contains more than 100 elements. Iterate (e.g. using .forEach) to print the rest of the Set');
+    }
+    return '[' + strings.join(',\n') + ']';
+  };
+};
+ImmutableIterableWW.prototype.forEach = function (visitor) {
+  let iterator = this._wrapped.iterator();
+  let index = 0;
+  while (iterator.hasNext()) {
+    visitor(wrap(iterator.next(), this.yField, this.enclosingEntity), index, this);
+    index++;
+  }
+};
+ImmutableIterableWW.prototype.first = function () {
+  return wrap(this._wrapped.first(), this.yField, this.enclosingEntity);
+};
+ImmutableIterableWW.prototype.last = function () {
+  return wrap(this._wrapped.last(), this.yField, this.enclosingEntity);
+};
+ImmutableIterableWW.prototype.isEmpty = function () {
+  return this._wrapped.isEmpty();
+};
+ImmutableIterableWW.prototype.isNotEmpty = function () {
+  return this._wrapped.isNotEmpty();
+};
+ImmutableIterableWW.prototype.get = function (index) {
+  return wrap(this._wrapped.get(index), this.yField, this.enclosingEntity);
+};
+ImmutableIterableWW.prototype.has = function (element) {
+  return this._wrapped.contains(unwrap(element, this.yField, this.enclosingEntity));
+};
+ImmutableIterableWW.prototype.find = function (visitor) {
+  let iterator = this._wrapped.iterator();
+  while (iterator.hasNext()) {
+    let elem = iterator.next();
+    let value =  wrap(elem, this.yField, this.enclosingEntity);
+    let res = visitor(value);
+    if (res) {
+      return value;
+    }
+  }
+};
+ImmutableIterableWW.prototype.slice = function (start, end) {
+  start = (start == null || start < 0) ? 0 : start;
+  const result = [];
+  if (end != null && end <= start) {
+    return result;
+  }
+  let iterator = this._wrapped.iterator();
+  let index = 0;
+  while (iterator.hasNext()) {
+    const raw = iterator.next();
+    if (index >= start) {
+      if (end == null || index < end) {
+        result.push(wrap(raw, this.yField, this.enclosingEntity));
+      } else {
+        break;
+      }
+    }
+    index++;
+  }
+  return result;
+};
+ImmutableIterableWW.prototype.map = function (visitor) {
+  const result = [];
+  let iterator = this._wrapped.iterator();
+  let index = 0;
+  while (iterator.hasNext()) {
+    const value = wrap(iterator.next(), this.yField, this.enclosingEntity);
+    result.push(visitor(value, index, this));
+    index++;
+  }
+  return result;
+};
+ImmutableIterableWW.prototype['@@iterator'] = function () {
+  return new Iterator(this._wrapped, this.yField);
+};
+Object.defineProperty(ImmutableIterableWW.prototype, '_canCheckHistory', {
+  value: function () {
+    if (!this.enclosingEntity) {
+      throw 'Can not access field changes since this Set is not a member of an entity';
+    }
+  }
+});
+Object.defineProperty(ImmutableIterableWW.prototype, 'isChanged', {
+  get: function () {
+    this._canCheckHistory();
+    return this.enclosingEntity.isChanged(this.linkName || this.yField);
+  },
+  enumerable: true
+});
+Object.defineProperty(ImmutableIterableWW.prototype, 'added', {
+  get: function () {
+    this._canCheckHistory();
+    return this.enclosingEntity.getAdded(this.linkName || this.yField);
+  },
+  enumerable: true
+});
+Object.defineProperty(ImmutableIterableWW.prototype, 'removed', {
+  get: function () {
+    this._canCheckHistory();
+    return this.enclosingEntity.getRemoved(this.linkName || this.yField);
+  },
+  enumerable: true
+});
+Object.defineProperty(ImmutableIterableWW, '$type', {value: 'Set'});
+
+
+function createMutableIterableWW(obj, yField, enclosingEntity, linkName) {
+  let ptt = new ImmutableIterableWW(obj, yField, enclosingEntity, linkName);
+  let MutableIterableWW = function () {
+    this.toString = ptt.toString;
+  };
+  MutableIterableWW.prototype = ptt;
+  MutableIterableWW.prototype.add = function (element) {
+    return this._wrapped.add(unwrap(element, yField));
+  };
+  MutableIterableWW.prototype.delete = function (element) {
+    return this._wrapped.remove(unwrap(element, yField));
+  };
+  MutableIterableWW.prototype.clear = function () {
+    return this._wrapped.clear();
+  };
+  let result = new MutableIterableWW();
+  // JT-93775 shim — remove in R+2
+  if (legacyStarShim.isApplicable(enclosingEntity, linkName)) {
+    return legacyStarShim.decorate(result, enclosingEntity);
+  }
+  return result;
+}
+
+const findYCustomField = function (name, project) {
+  return $$fieldsAndLinksMeta.getField(project._wrapped, name);
+};
+
+const findYIssueLink = function (name) {
+  return $$fieldsAndLinksMeta.getLink(name);
+};
+
+const findField = function (typeName, fieldName, project) {
+  let field = yTypes.getByName(typeName).findField(fieldName);
+  if (field) {
+    return field;
+  }
+  if (typeName === 'Issue') {
+    let yCustomField = findYCustomField(fieldName, project);
+    if (yCustomField) {
+      return yCustomField;
+    }
+    let yIssueLink = findYIssueLink(fieldName);
+    if (yIssueLink) {
+      return yIssueLink;
+    }
+  }
+  if (exports[typeName].$$declaredProperties.indexOf(fieldName) > -1) {
+    return {
+      getName: function () {
+        return fieldName;
+      }
+    };
+  }
+  throw 'No field with name ' + fieldName + ' found for type ' + typeName;
+};
+
+const wrap = function (obj, yField, enclosingEntity, linkName) {
+  let wrapped = obj;
+  if (obj instanceof EnumReferenceClass) {
+    wrapped = obj.getValue();
+  } else if (obj instanceof PersistentEntityWrapperClass) {
+    wrapped = new entities[obj.getEntityType()](obj);
+  } else if (obj instanceof MutableIterableWrapperClass) {
+    wrapped = createMutableIterableWW(obj, yField, enclosingEntity, linkName);
+  } else if (obj instanceof ScriptingSequenceClass) {
+    wrapped = new ImmutableIterableWW(obj, yField, enclosingEntity, linkName);
+  } else if (yField && (yField instanceof YFieldClass) && yField.isMulti() && typeof obj === 'function') {
+    wrapped = createMutableIterableWW(obj, yField, enclosingEntity, linkName);
+  }
+  return wrapped;
+};
+
+const isSprintsField = function (yField) {
+  // TODO handle it in a more elegant way
+  return yField && yField.getName && yField.getName() === 'sprints';
+};
+
+const unwrap = function (obj, yField) {
+  let unwrapped = (!obj || !obj._wrapped) ? obj : obj._wrapped;
+  if (isSprintsField(yField)) {
+    return unwrapped;
+  }
+  if ((typeof unwrapped === 'string') && yField && (yField instanceof YBundleCustomFieldClass)) {
+    unwrapped = new EnumReferenceClass(unwrapped);
+  }
+  return unwrapped;
+};
+
+const entities = {};
+
+// JT-93775 shim — remove in R+2
+const legacyStarShim = require('./legacy-star-shim');
+legacyStarShim.init(entities);
+
+const unwrapArguments = function (argsArray) {
+  if (!Array.isArray(argsArray)) {
+    argsArray = Array.prototype.slice.call(argsArray, 0);
+  }
+  var uw = function (arg) {
+    if (Array.isArray(arg)) {
+      return arg.map(uw);
+    }
+    if (arg && typeof arg === 'object' && !arg._wrapped) {
+      Object.keys(arg).forEach(function(key) {
+        arg[key] = uw(arg[key]);
+      });
+    }
+    return (!arg || !arg._wrapped) ? arg : arg._wrapped;
+  };
+  return argsArray.map(uw);
+};
+
+const getter = function (yField, name) {
+  return function () {
+    const effectiveName = name ? name : yField.getName();
+    let result = this._wrapped ? this._wrapped.get(effectiveName) : null;
+    return wrap(result && yField && (yField instanceof YFieldClass) && yField.isMulti() ? (() => result) : result, yField, this.enclosingEntity || this, effectiveName);
+  };
+};
+
+const setter = function (yField, name) {
+  return function (value) {
+    if (this._wrapped) {
+      const effectiveName = name ? name : yField.getName();
+      this._wrapped.set(effectiveName, unwrap(value, yField));
+    }
+  };
+};
+
+const roSetter = function (name) {
+  return function () {
+    throw 'Property "' + name + '" is read-only';
+  };
+};
+
+const method = function (name, propertyName) { // propertyName is only relevant for methods representing getters/setters
+  return function () {
+    return wrap(this._wrapped.invoke(name, unwrapArguments(arguments)), propertyName, this);
+  };
+};
+
+const staticMethod = function (typeName, name) {
+  return function () {
+    return wrap(PersistentEntityWrapperClass.invokeStatic(typeName, name, unwrapArguments(arguments)));
+  };
+};
+
+const defineFunctions = function (target, applyTo, functions, enumerable) {
+  Object.keys(functions).forEach(function (key) {
+    Object.defineProperty(target, key, {
+      value: function () {
+        return functions[key].apply(applyTo, arguments);
+      },
+      enumerable: enumerable
+    });
+  });
+};
+
+// === per type stuff ===
+const defineSpecificIssueProperties = function (e) {
+  let flds = e.fields = {};
+  Object.defineProperty(flds, '_wrapped', {value: e._wrapped});
+  Object.defineProperty(flds, 'enclosingEntity', {value: e});
+  let toStr = function () {
+    return '{' + Object.keys(flds).map(function (fld) {
+      return '"' + fld + '": ' + flds[fld];
+    }).join(',\n') + '}';
+  };
+  Object.defineProperty(flds, 'toString', {value: toStr});
+  Object.defineProperty(flds, 'toShortString', {value: toStr});
+  if (!e.project) return;
+  let cfs = $$fieldsAndLinksMeta.get(e.project._wrapped);
+  for (let i = 0; i < cfs.length; i ++) {
+    let cf = cfs[i];
+    handleField(e, cf, cf.getName(), false);
+    handleField(flds, cf, cf.getName(), true);
+  }
+  defineLazyProperty(e, 'links', () => {
+    const lnks = {};
+    Object.defineProperty(lnks, '_wrapped', {value: e._wrapped});
+    Object.defineProperty(lnks, 'enclosingEntity', {value: e});
+    Object.defineProperty(lnks, 'toString', {
+      value: function () {
+        return '{' + Object.keys(lnks).map(function (lnk) {
+          return '"' + lnk + '": ' + lnks[lnk];
+        }).join(',\n') + '}';
+      }
+    });
+    let linksMeta = $$fieldsAndLinksMeta.getLinks();
+    for (let i = 0; i < linksMeta.length; i ++) {
+      handleLink(lnks, linksMeta[i]);
+    }
+    return lnks;
+  })
+};
+
+const defineSpecificUserProperties = function (e) {
+  defineLazyProperty(e, 'attributes', () => {
+    const attribs = {};
+    e.customAttribs.forEach((attrib) => {
+      Object.defineProperty(attribs, attrib.name, {
+        get: () => {
+          return attrib.value;
+        }
+      });
+    });
+    return attribs;
+  });
+};
+
+const defineSpecificWorkItemProperties = function (e) {
+  defineLazyProperty(e, 'attributes', () => {
+    let attributes = {};
+    e.workItemAttributes.forEach((attrib) => {
+      Object.defineProperty(attributes, attrib.name, {
+        get() {
+          return attrib.getValue(e);
+        },
+        set(v) {
+          attrib.setValue(e, v);
+        }
+      });
+    });
+    return attributes;
+  });
+};
+// === end of per type stuff ===
+
+
+const constructor = function (name) {
+  let type = function () {
+    let argsArray = Array.prototype.slice.call(arguments, 0);
+    let _w;
+    if (argsArray.length === 1 && argsArray[0] instanceof PersistentEntityWrapperClass) {
+      _w = argsArray[0];
+    } else {
+      _w = PersistentEntityWrapperClass.invokeConstructor(name, unwrapArguments(argsArray));
+    }
+    Object.defineProperty(this, '_wrapped', {value: _w});
+
+    let e = this;
+    if (name === 'Issue') {
+      defineSpecificIssueProperties(e);
+    } else if (name === 'User') {
+      defineSpecificUserProperties(e);
+    } else if (name === 'IssueWorkItem' || name === 'WorkItemDraft') {
+      defineSpecificWorkItemProperties(e);
+    }
+    const fieldName = field => {
+      if (!field) {
+        throw 'Invalid argument: ' + field;
+      }
+      let ret = typeof field === 'string' ? field : field.name;
+      if (!ret) {
+        throw 'Invalid argument: ' + field;
+      }
+      return ret;
+    };
+    const fieldFunctions = (fieldName, fieldLocator) => {
+      return {
+        required: function (field, message) {
+          const AssertionClass = Java.type('jetbrains.youtrack.workflow.model.Assertion')
+          AssertionClass.require(e._wrapped, fieldName(field), message);
+        },
+        becomes: function (field, expected) {
+          return e._wrapped.becomes(fieldName(field), unwrap(expected, fieldLocator(fieldName(field))));
+        },
+        is: function (field, expected) {
+          return e._wrapped.fieldEquals(fieldName(field), unwrap(expected, fieldLocator(fieldName(field))));
+        },
+        was: function (field, expected) {
+          return e._wrapped.fieldWasEqual(fieldName(field), unwrap(expected, fieldLocator(fieldName(field))));
+        },
+        isChanged: function (field) {
+          return e._wrapped.isChanged(fieldName(field));
+        },
+        oldValue: function (field) {
+          return wrap(e._wrapped.getOldValue(fieldName(field)), fieldLocator(fieldName(field)), e);
+        },
+        canBeReadBy: function (field, user) {
+          return e._wrapped.canBeReadBy(fieldName(field), unwrap(user));
+        },
+        canBeWrittenBy: function (field, user) {
+          return e._wrapped.canBeWrittenBy(fieldName(field), unwrap(user));
+        }
+      };
+    };
+    Object.defineProperty(e, 'becomesRemoved', {
+      get: function () {
+        return e._wrapped.isRemoved();
+      },
+      enumerable: true
+    });
+    Object.defineProperty(e, 'isNew', {
+      get: function () {
+        return e._wrapped.isNew();
+      },
+      enumerable: true
+    });
+    Object.defineProperty(e, '$$type', {value: name, enumerable: true});
+    Object.defineProperty(e, 'toString', {
+      value: function () {
+        let props = [];
+        for (let prop in e) {
+          let propValue = e[prop];
+          if (typeof propValue === 'function') {
+            props.push('"' + prop + '": function() {}');
+          } else {
+            props.push('"' + prop + '": "' + (propValue && propValue._wrapped && propValue.toShortString ? propValue.toShortString() : propValue) + '"');
+          }
+        }
+        return '{' + props.join(',\n') + '}';
+      }, enumerable: true
+    });
+    Object.defineProperty(e, 'toShortString', {
+      value: function () {
+        let ret = '{"$$type": " ' + name + '"';
+        let identifyingProperty = identifyingProperties[name];
+        if (identifyingProperty) {
+          ret += ', "' + identifyingProperty + '": "' + e[identifyingProperty] + '"';
+        } else if (e.name) {
+          ret += ', "name": "' + e.name + '"';
+        }
+        return ret + '}';
+      }, enumerable: true
+    });
+    const normalFieldLocator = field => { return findField(name, fieldName(field), e.project) };
+    defineFunctions(e, e, fieldFunctions(fieldName, normalFieldLocator), true);
+    let obsoleteEntityFunctions = { // these functions are obsolete since it's possible to call them on iterable wrappers
+      getAdded: function (field) {
+        return new ImmutableIterableWW(e._wrapped.added(fieldName(field)), findField(name, fieldName(field), e.project), e);
+      },
+      getRemoved: function (field) {
+        return new ImmutableIterableWW(e._wrapped.removed(fieldName(field)), findField(name, fieldName(field), e.project), e);
+      }
+    };
+    defineFunctions(e, e, obsoleteEntityFunctions, false);
+    if (e.fields) {
+      defineFunctions(e.fields, e, fieldFunctions(fieldName, normalFieldLocator), true);
+    }
+    defineLazyProperty(e, 'pluggedAttributes', () => {
+      const pluggedAttributes = {};
+      definePluggableAttributes(pluggedAttributes, e._wrapped, false)
+      defineFunctions(
+          pluggedAttributes, e,
+          fieldFunctions(
+              field => e.pluggedAttributes._yFields[field].getName(),
+              field => e.pluggedAttributes._yFields[field]),
+          true)
+      return pluggedAttributes;
+    });
+    Object.defineProperty(e, 'extensionProperties', {
+      get: () => e.pluggedAttributes
+    });
+    Object.defineProperty(e, 'externalId', {
+      get: () => e._wrapped.getExternalIdForCurrentConfiguration(),
+      set: (v) => e._wrapped.setExternalIdForCurrentConfiguration(v)
+    });
+  };
+  Object.defineProperty(type, '$type', {value: name});
+  return type;
+};
+
+const definePluggableAttributes = function (target, entity, readOnly) {
+  Object.defineProperty(target, '_wrapped', {value: entity});
+  Object.defineProperty(target, '_yFields', {value: {}});
+  wrap(entity.get('pluggedAttributeDeclarations'), null, entity).forEach((attrib) => {
+    const yField = attrib.asYField;
+    const readOnlyField = readOnly || yField.isReadOnly()
+    handleField(target, yField, attrib.name, true, true, readOnlyField);
+    Object.defineProperty(target._yFields, attrib.name, {value: yField});
+  });
+}
+
+const handleLink = function (target, yMember) {
+  let defineLinkProperty = function (linksObject, yMember, name) {
+    Object.defineProperty(linksObject, name, {
+      enumerable: true,
+      get: getter(yMember, name)
+    });
+  };
+  defineLinkProperty(target, yMember, yMember.getOutward());
+  if (yMember.getLocalizedOutward() && yMember.getLocalizedOutward() !== yMember.getOutward()) {
+    defineLinkProperty(target, yMember, yMember.getLocalizedOutward());
+  }
+  if (yMember.getInward()) { // is directed
+    defineLinkProperty(target, yMember, yMember.getInward());
+    if (yMember.getLocalizedInward() && yMember.getLocalizedInward() !== yMember.getInward()) {
+      defineLinkProperty(target, yMember, yMember.getLocalizedInward());
+    }
+  }
+};
+
+const handleField =  function (target, yMember, name, enumerable, useYFieldName, readOnly) {
+  if (!enumerable && this.hasOwnProperty(name)) { // !enumerable means we're dealing with obsolete CF definition. E.g. issue.State
+    return;
+  }
+  const ro = (typeof readOnly === 'undefined') ? yMember.isReadOnly() : readOnly;
+  Object.defineProperty(target, name, {
+    enumerable: enumerable,
+    get: getter(yMember, useYFieldName ? null : name),
+    set: ro ? roSetter(useYFieldName ? null : name) : setter(yMember, useYFieldName ? null : name)
+  });
+  if (yMember instanceof YCustomFieldClass) {
+    // moreover, it's a custom field
+    let localizedName = yMember.getLocalizedName();
+    if (localizedName && localizedName !== name) {
+      Object.defineProperty(target, localizedName, {
+        enumerable: enumerable,
+        get: getter(yMember, localizedName),
+        set: setter(yMember, localizedName)
+      });
+    }
+  }
+};
+
+const handleEnumElement = function (target, typeName, name) {
+  Object.defineProperty(target, name, {
+    enumerable: true,
+    get: function () {
+      return wrap(PersistentEntityWrapperClass.getEnumElement(typeName, name, null));
+    }
+  });
+};
+
+const handleStaticMethod = function (target, typeName, memberName) {
+  // JT-93775 shim — remove in R+2
+  cons�t overridable = legacyStarShim.shouldBeOverridable(typeName, true, memberName);
+  Object.defineProperty(target, memberName, {
+    enumerable: true,
+    configurable: overridable,
+    writable: overridable,
+    value: staticMethod(typeName, memberName)
+  });
+};
+
+const handleMethod = function (target, typeName, memberName) {
+  // JT-93775 shim — remove in R+2
+  const overridable = legacyStarShim.shouldBeOverridable(typeName, false, memberName);
+  Object.defineProperty(target, memberName, {
+    enumerable: true,
+    configurable: overridable,
+    writable: overridable,
+    value: method(memberName)
+  });
+};
+
+const handleProperty = function (target, yMember, propertyDescription, yClass) {
+  let methodType = yMember.getMethodType();
+  let isStatic = methodType.name() === 'STATIC';
+  let getterName = propertyDescription.getterName;
+  let setterName = propertyDescription.setterName;
+  let getter = isStatic ? staticMethod(yClass.getName(), getterName) : method(getterName, propertyDescription.propertyName);
+  let setter = isStatic ? staticMethod(yClass.getName(), setterName) : method(setterName, propertyDescription.propertyName);
+  Object.defineProperty(target, propertyDescription.propertyName, {
+    enumerable: true,
+    get: getter,
+    set: yClass.findMethod(setterName, 1, methodType) ? setter : roSetter(propertyDescription.propertyName)
+  });
+};
+
+const toPropertyDescription = function (yMember) {
+  let propertyName = yMember.getPropertyName();
+  if (propertyName) {
+    return {
+      getterName: yMember.getName(),
+      setterName: yMember.getCompliantSetterName(),
+      propertyName: propertyName
+    };
+  }
+};
+
+const handleClass = function (yClass) {
+  let yName = yClass.getName();
+  if (entities[yName]) {
+    return;
+  }
+  let entityType = constructor(yName);
+  let superYClass = yClass.getSuperClassForJs();
+  let declaredProperties = [];
+  if (superYClass) {
+    let superYClassName = superYClass.getName();
+    handleClass(superYClass);
+    entityType.prototype = Object.create(entities[superYClassName].prototype);
+    entityType.prototype.constructor = entities[superYClassName];
+  }
+  entities[yName] = entityType;
+
+  let methodsToSkip = [];
+  let staticMethodsToSkip = [];
+  yClass.getDeclaredMembersArray().forEach(function (yMember) {
+    if (!!yMember.isIgnoreInJs && yMember.isIgnoreInJs()) {
+      return;
+    }
+
+    let memberName = yMember.getName();
+    if (yMember instanceof YEnumElementClass) {
+      handleEnumElement(entityType, yName, memberName);
+    } else if (yMember instanceof YFieldClass) {
+      handleField(entityType.prototype, yMember, memberName, true);
+    } else if (yMember.getMethodType().name() === 'CONSTRUCTOR') {
+      // do nothing
+    } else {
+      let isStatic = yMember.getMethodType().name() === 'STATIC';
+      let skip = isStatic ? staticMethodsToSkip : methodsToSkip;
+      if (skip.indexOf(memberName) > -1) {
+        return;
+      }
+      let target = isStatic ? entityType : entityType.prototype;
+      let propertyDescription = toPropertyDescription(yMember);
+      if (propertyDescription) {
+        // this means a property should be defined instead of a method
+        handleProperty(target, yMember, propertyDescription, yClass);
+        skip.push(propertyDescription.setterName);
+        declaredProperties.push(propertyDescription.propertyName);
+      } else {
+        (isStatic ? handleStaticMethod : handleMethod)(target, yName, memberName);
+      }
+    }
+  });
+  Object.defineProperty(entityType, '$$declaredProperties', {value: declaredProperties});
+};
+const defineLazyProperty = (object, name, initializer) => {
+  Object.defineProperty(object, name, {
+    get: () => {
+      if (!object["$$" + name]) {
+        object["$$" + name] = initializer();
+      }
+      return object["$$" + name];
+    }
+  });
+}
+yTypes.get().forEach(handleClass);
+
+// publish
+Object.keys(entities).forEach(function (typeName) {
+  exports[typeName] = entities[typeName];
+});
+
+exports['IssueTag'] = {
+  findByName: (name) => { return exports.Tag.findByName(name) },
+  findTagByName: (name) => { return exports.Tag.findTagByName(name) },
+  $type: 'Tag'
+};
+
+// JT-93775 shim — remove in R+2
+legacyStarShim.decorateAfterRegistration(exports);
+
+exports['_definePluggableAttributes'] = definePluggableAttributes
+exports['_wrap'] = wrap

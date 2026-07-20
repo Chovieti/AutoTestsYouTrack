@@ -1,0 +1,266 @@
+*¿/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const workflow = require('@jetbrains/youtrack-scripting-api/workflow');
+const entities = require('@jetbrains/youtrack-scripting-api/entities');
+const Connection = require('./connection');
+const dateTime = require('@jetbrains/youtrack-scripting-api/date-time');
+const dateConverter = (ctx, value) => dateTime.format(value, 'yyyy-MM-dd');
+
+const simpleConverter = (_, value) => value ? value.name.toLowerCase() : null;
+
+const linkUsersIfNeededAndPossible = (ctx, user) => {
+  if (!user || user.externalId || !user.email) {
+    return;
+  }
+  const email = user.email;
+  const response = ctx.getObject('connection').GET('/users/search.json', {query: `email:"${email}"`});
+  if (!response.count) {
+    return;
+  }
+  const normalizedEmail = email.toLowerCase();
+  const matched = response.users.find(u => u.email && u.email.toLowerCase() === normalizedEmail);
+  if (matched) {
+    user.externalId = matched.id.toString();
+  }
+};
+
+const predefinedZendeskFields = {
+  'Assignee': {
+    key: 'assignee_id',
+    convert: (ctx, value) => {
+      linkUsersIfNeededAndPossible(ctx, value);
+      return value ? value.externalId : null;
+    }
+  },
+  'State': {
+    key: 'status',
+    convert: simpleConverter,
+    possibleValues: [ 'new', 'open', 'pending', 'hold', 'solved', 'closed']
+  },
+  'Priority': {
+    key: 'priority',
+    convert: simpleConverter,
+    possibleValues: ['urgent', 'high', 'normal', 'low']
+  },
+  'Type': {
+    key: 'type',
+    convert: simpleConverter,
+    possibleValues: ['problem', 'incident', 'question', 'task']
+  },
+  'due_at': {
+    key: 'due_at',
+    convert: dateConverter
+  }
+};
+
+const bundleConverter = (ctx, value) => value.externalId;
+const multiBundleConverter = (ctx, value) => {
+  const result = [];
+  value.forEach(it => {
+    result.push(it.externalId);
+  });
+  return result;
+};
+
+const identicalConverter = (ctx, value) => value;
+
+const youtrackToZendeskFieldConverters = {
+  'string': identicalConverter,
+  'integer': identicalConverter,
+  'float': identicalConverter,
+  'enum[1]': bundleConverter,
+  'build[1]': bundleConverter,
+  'state[1]': bundleConverter,
+  'version[1]': bundleConverter,
+  'ownedField[1]': bundleConverter,
+  'enum[*]': multiBundleConverter,
+  'build[*]': multiBundleConverter,
+  'version[*]': multiBundleConverter,
+  'ownedField[*]': multiBundleConverter,
+  'date and time': dateConverter,
+  'date': dateConverter
+};
+
+const getChangedFieldNames = (issue) => {
+  const fieldNames = [];
+  issue.project.fields.forEach(field => fieldNames.push(field.name));
+  return fieldNames.filter(it => issue.fields.isChanged(it));
+};
+
+const uploadAttachmentAndGetToken = (ctx, attachment) => {
+  let connection = ctx.getObject('connection');
+  connection.setHeader('Content-Type', attachment.mimeType);
+  const response = connection.POST('/uploads.json', {filename: attachment.name}, attachment.content);
+  connection.setHeader('Content-Type', 'application/json');
+  if (!attachment.externalId) {
+    attachment.externalId = '' + (response.upload.attachment || {}).id;
+  }
+  return response.upload;
+};
+
+const prepareCommentBody = (body, issue, newAttachmentsMap, ctx) => {
+  console.trace(`Parsing body of ${issue.id} for attachment references`);
+  const {attachments: ytIssueAttachments, externalId} = issue;
+  let preparedBody = body.replace(/\{width=.*?}/g, '');
+  const mdAttachmentRegexp = /!\[([^\]]*)]\(([^)]+)\)/g;
+  const bodyMdAttachmentFilenameRegexp = /!\[([^\]]*)]\(([^)]*\?name=([^)]*))\)/g;
+  const mentionedInlineAttachments = [...preparedBody.matchAll(mdAttachmentRegexp)];
+
+  if (mentionedInlineAttachments.length) {
+    const {comments: zdComments} = ctx.getObject('connection').GET(`/tickets/${externalId}/comments.json`);
+    const {attachments: zdTicketAttachments, body: zdTicketBody} = zdComments[0];
+    const zdBodyMatches = [...zdTicketBody.matchAll(bodyMdAttachmentFilenameRegexp)];
+    mentionedInlineAttachments.forEach(match => {
+      const fileName = match.length === 3 && match[2];
+      const newlyCreatedAttachment = newAttachmentsMap.get(fileName);
+      if (newlyCreatedAttachment) {
+        console.trace('Looking for just created attachments');
+        preparedBody = preparedBody.replaceAll(match[0], `![](${newlyCreatedAttachment})`);
+      } else if (ytIssueAttachments.find(a => a.name === fileName)) {
+        console.trace('Looking for existing ticket attachments');
+        const foundMatch = zdTicketAttachments.find(a => a.file_name === fileName);
+        preparedBody = foundMatch ? preparedBody.replaceAll(match[0], `![](${foundMatch.content_url})`) : preparedBody;
+      } else if (zdBodyMatches.length) {
+        console.trace('Looking for attachments only mentioned in the body');
+        const foundMatch = zdBodyMatches.find(bodyMatch => bodyMatch[3] === fileName);
+        preparedBody = foundMatch ? preparedBody.replaceAll(match[0], `![](${foundMatch[2]}})`) : preparedBody;
+      } else {
+        console.trace('Looking for attachments within comments');
+        const foundMatch = zdComments.reduce((acc, comment) => {
+          const foundAttachment = comment.attachments.find(a => a.file_name === fileName);
+          return foundAttachment || acc;
+        }, null);
+        preparedBody = foundMatch ? preparedBody.replaceAll(match[0], `![](${foundMatch.content_url}})`) : preparedBody;
+      }
+    });
+  }
+  return preparedBody;
+};
+
+
+exports.rule = entities.Issue.onChange({
+  title: 'Send issue updates back to Zendesk',
+  guard: (ctx) => {
+    const issue = ctx.issue;
+    return issue.externalId && (issue.comments.added.isNotEmpty() || (getChangedFieldNames(issue).length > 0))
+      || issue.tags.added.isNotEmpty() || issue.tags.removed.isNotEmpty();
+  },
+  action: (ctx) => {
+    const issue = ctx.issue;
+    const issueExternalId = issue.externalId;
+    if (!issueExternalId) {
+      console.warn(`Did not sync with Zendesk the changes made in ${issue.id}, issue has no externalId`);
+      return;
+    }
+
+    const currentUser = ctx.currentUser;
+    if (currentUser.isSystem) {
+      console.warn(`Did not sync with Zendesk the changes made by system author ${currentUser.id} in ${issue.id} (externalId: ${issueExternalId})`);
+      return;
+    }
+
+    const httpConnection = Connection.newHttp(ctx);
+    ctx.setObject('connection', httpConnection);
+
+    linkUsersIfNeededAndPossible(ctx, currentUser);
+    const userExternalId = currentUser.externalId;
+    workflow.check(!!userExternalId, 'Your YouTrack user account is not bound to a Zendesk user account. Please make sure there\'s a user account in Zendesk that can be matched to your YouTrack account by email.');
+
+    console.trace(`Sending information on ${issue.id} (externalId: ${issueExternalId}) to Zendesk`);
+
+    const payload = {
+      ticket: {}
+    };
+
+    const comment = issue.comments.added.isNotEmpty() ? issue.comments.added.last() : null;
+    if (comment) {
+      const body = comment.text;
+      payload.ticket.comment = {
+        public: !(comment.permittedGroups.size || comment.permittedUsers.size) && comment.isVisibleTo(issue.reporter),
+        author_id: userExternalId,
+        body: body,
+        uploads: []
+      };
+      const newAttachmentsMap = new Map();
+
+      comment.attachments.forEach(attachment => {
+        const {token, attachment: {content_url: url, file_name: name}} = (uploadAttachmentAndGetToken(ctx, attachment));
+        payload.ticket.comment.uploads.push(token);
+        newAttachmentsMap.set(name, url);
+      });
+      payload.ticket.comment.body = prepareCommentBody(body, issue,newAttachmentsMap, ctx);
+    }
+
+    if (issue.tags.added.isNotEmpty() || issue.tags.removed.isNotEmpty()) {
+      payload.ticket.tags = [];
+      issue.tags.forEach(it => {
+        workflow.check(it.name.indexOf(' ') < 0, 'Tags with spaces in the name can not be synchronized to Zendesk.');
+        if (it.permittedReadUserGroups.isNotEmpty() || it.permittedReadUsers.isNotEmpty()) {
+          payload.ticket.tags.push(it.name);
+        }
+      });
+    }
+
+    const changedFieldNames = getChangedFieldNames(issue);
+    console.trace(`changed fields are ${JSON.stringify(changedFieldNames)}`);
+    changedFieldNames.forEach((fieldName) => {
+      const project = issue.project;
+      const projectField = project.findFieldByName(fieldName);
+      const fieldExternalId = projectField.externalId;
+      if (!fieldExternalId) {
+        console.warn(`Field ${fieldName} in project ${project.key} does not have externalId`);
+        return;
+      }
+
+      const predefinedZendeskFieldInfo = predefinedZendeskFields[fieldExternalId];
+      const fieldValue = issue.fields[fieldName];
+      if (predefinedZendeskFieldInfo) {
+        const convertedValue = predefinedZendeskFieldInfo.convert(ctx, fieldValue);
+        if (predefinedZendeskFieldInfo.possibleValues) {
+          workflow.check(
+            predefinedZendeskFieldInfo.possibleValues.indexOf(convertedValue) >= 0,
+            'This change cannot be applied because the selected value is not available in the synced Zendesk ticket. Please select another value.'
+          );
+        }
+        payload.ticket[predefinedZendeskFieldInfo.key] = convertedValue;
+        console.trace(`Field ${fieldName} is treated as ZD predefined ${predefinedZendeskFieldInfo.key}`);
+      } else {
+        if (!payload.ticket.custom_fields) {
+          payload.ticket.custom_fields = [];
+        }
+        const converter = youtrackToZendeskFieldConverters[projectField.typeName];
+        payload.ticket.custom_fields.push({id: parseInt(fieldExternalId), value: converter(ctx, fieldValue)});
+        console.trace(`Field ${fieldName} is treated as ZD custom ${fieldExternalId}`);
+      }
+    });
+
+    const payloadStringified = JSON.stringify(payload);
+    console.trace(`Executing PUT request ${payloadStringified}`);
+    let response;
+    try {
+      response = httpConnection.PUT(`/tickets/${issueExternalId}.json`, null, payloadStringified);
+    } catch (e) {
+      const reasons = (((e.response || {}).details || {}).base || []).map(it => it.description).join('; ');
+      workflow.check(false, reasons || e.message);
+    }
+
+    if (comment) {
+      const commentCandidates = response.audit.events.filter((e) => e.type === 'Comment' && e.author_id.toString() === userExternalId);
+      comment.externalId = commentCandidates && commentCandidates.length && ('' + commentCandidates[0].id) || null;
+    }
+  }
+});

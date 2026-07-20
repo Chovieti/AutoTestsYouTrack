@@ -1,0 +1,371 @@
+-/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const cache = require('@jetbrains/youtrack-scripting-api/cache');
+const dateTime = require('@jetbrains/youtrack-scripting-api/date-time');
+const usersDirectory = require('@jetbrains/youtrack-atlassian-utils/users-directory');
+const jiraLinks = require('./links');
+const jiraUtils = require('./utils');
+const toMarkdown = require('@jetbrains/youtrack-wiki-to-markdown-converter/converter').toMarkdown;
+const adfToMarkdown = require('@jetbrains/youtrack-wiki-to-markdown-converter/converter').convertAdfToMarkdown;
+
+const getName = obj => typeof obj === 'string' ? obj : obj.name;
+
+
+function Fields(client, ctxAccess) {
+
+  const convertToMarkdown = original => {
+    if (!original) {
+      return '<empty comment>';
+    }
+    if (typeof original === 'string') {
+      const trimmed = original.trim();
+      if (trimmed.length) {
+        return toMarkdown(trimmed);
+      }
+      return '<empty comment>';
+    }
+    if (original && typeof original === 'object' && original.type === 'doc') {
+      const markdownText = adfToMarkdown(original).trim();
+      return markdownText || '<empty comment>';
+    }
+    return '<empty comment>';
+  };
+
+  const getUsersCache = function () {
+    return ctxAccess.getOrCreateObject('usersCache', () => {
+      return cache.create(100, 'users');
+    });
+  };
+
+  const stateColors = {
+    'undefined': 1,
+    'new': 15,
+    'done': 3,
+    'indeterminate': 13
+  };
+
+  const Resolution = jiraResolution => {
+    return {
+      name: getName(jiraResolution),
+      colorIndex: stateColors['undefined'],
+      description: jiraResolution.description,
+      type: 'enum'
+    };
+  };
+
+  const state = jiraStatus => {
+    const res = {name: getName(jiraStatus)};
+    if (!jiraStatus.self) {
+      const schema = ctxAccess.getObject('fieldSchema');
+      const statuses = schema['statuses'] || (schema['statuses'] = client.getStatuses());
+      if (statuses) {
+        jiraStatus = statuses.find((status) => {
+          return status.name === res.name;
+        }) || res.name;
+      }
+    }
+    const statusKey = jiraStatus.statusCategory && jiraStatus.statusCategory.key;
+    if (statusKey) {
+      res.colorIndex = stateColors[statusKey];
+      res.isResolved = statusKey === 'done';
+    } else {
+      res.colorIndex = stateColors['undefined'];
+      res.isResolved = false;
+    }
+
+    res.type = 'state';
+    console.trace('Jira status converted. Name ' + res.name + ', isResolved: ' + res.isResolved + ', colorIndex: ' + res.colorIndex);
+    return res;
+  };
+
+  const version = jiraVersion => {
+    return {
+      name: getName(jiraVersion),
+      archived: jiraVersion.archived,
+      releaseDate : jiraVersion.releaseDate,
+      startDate: jiraVersion.startDate,
+      description: jiraVersion.description,
+      type: 'version'
+    };
+  };
+
+  const tag = jiraLabel => {
+    return {
+      name: convertToMarkdown(jiraLabel, 'no name tag'),
+      type: 'tag',
+      visibleToGroups: [jiraUtils.allUsersGroup],
+      editableByGroups: [jiraUtils.allUsersGroup],
+      usableByGroups: [jiraUtils.allUsersGroup]
+    };
+  };
+
+  const enumField = jiraEnumElement => {
+    const name = typeof jiraEnumElement === 'string' ? // as we treat multi-valued fields as enums
+      jiraEnumElement : (jiraEnumElement.name || jiraEnumElement.value);
+    return {
+      name: name,
+      description: jiraEnumElement.description,
+      type: 'enum'
+    };
+  };
+
+  const deletedUser = {
+    id: 'deleted_user',
+    name: 'deleted_user',
+    login: 'deleted_user',
+    accountId: 'deleted_user',
+    active: 'false',
+    email: null,
+    deleted: true,
+    banned: true,
+    self: 'deleted_user',
+    type: 'user'
+  };
+
+
+  const user = (original, jiraIssue) => {
+    if (!original) {
+      return deletedUser;
+    }
+    if (original.hasOwnProperty('deleted')) { // this means it's already been filled
+      return original;
+    }
+
+    const isCloud = ctxAccess.getObject('isCloud');
+    const serviceDeskProject = jiraIssue && jiraUtils.isServiceDeskProject(jiraIssue.fields.project);
+    const identifier = isCloud ? original.accountId : (original.name || original.key || original.id);
+
+    if (!identifier) {
+      console.warn('Could not find identifier of the Jira ' + (isCloud ? 'cloud' : '') + ' user ' + JSON.stringify(original));
+      return deletedUser;
+    }
+
+    if (original.accountType === 'app') {
+      console.warn('Detected application Jira ' + (isCloud ? 'cloud' : '') + ' user will be imported as deleted:' + JSON.stringify(original));
+      return {
+        id: identifier,
+        value: original.displayName,
+        name: original.displayName,
+        accountId: identifier,
+        active: 'false',
+        email: null,
+        deleted: true,
+        banned: true,
+        self: original.self,
+        type: 'user',
+        accountType: 'app'
+      };
+    }
+
+    const trim = (str) => {
+      if (str.indexOf('"') === 0) {
+        str = str.substring(1);
+      }
+      if (str.indexOf('"') === str.length - 1) {
+        str = str.substring(0, str.length - 1);
+      }
+      return str.trim();
+    };
+
+    return getUsersCache().get(identifier, () => {
+      let deleted = false;
+      if (!original.self) {
+        original = client.requestUser(identifier, failure => {
+          if (failure.code === 404) { // jira data can contain refs to a deleted user
+            console.error('Could not get Jira ' + (isCloud ? 'cloud' : '') + ' user information, ' +
+              'user will be imported as deleted:' + JSON.stringify(original));
+            deleted = true;
+          } else {
+            client.$private.networkFailureHandler(failure);
+          }
+        }) || original;
+      }
+      if (isCloud) {
+        usersDirectory.fillFromDirectory(ctxAccess, original);
+        if (serviceDeskProject) {
+          const { applicationRoles } = client.requestUserType(identifier, client.$private.networkFailureHandler);
+          const isRegisteredUser = original.accountType === 'atlassian';
+          const isAgent = applicationRoles.items.some(item => item.key === 'jira-servicedesk');
+          original.userType = isAgent
+            ? jiraUtils.YT_USER_TYPES.AGENT
+            : isRegisteredUser
+              ? jiraUtils.YT_USER_TYPES.STANDARD_USER
+              : jiraUtils.YT_USER_TYPES.REPORTER;
+        }
+      }
+      // there's no name (login) available in the user directory, so we can consider other identifiers as logins
+      let login = original.name || original.email || original.displayName;
+      if (!login) {
+        console.error('Could not find name of the user:');
+        console.error(original);
+        login = identifier;
+      } else {
+        login = trim(login);
+      }
+      return {
+        id: identifier,
+        value: login,
+        name: login,
+        email: original.email || original.emailAddress,
+        fullName: original.displayName && trim(original.displayName),
+        banned: !deleted && !original.active,
+        type: 'user',
+        deleted: deleted,
+        userType: original.userType ?? jiraUtils.YT_USER_TYPES.STANDARD_USER
+      };
+    });
+  };
+
+
+  const owned = jiraComponent => {
+    // id can be undefined when dealing with a component change event and the respective component had already been removed
+    jiraComponent = jiraComponent.id ? client.getComponent(jiraComponent.id) : jiraComponent;
+    const owner = jiraComponent.realAssignee || jiraComponent.assignee;
+    return {
+      name: getName(jiraComponent),
+      owner: owner ? user(owner) : null,
+      type: 'ownedField'
+    };
+  };
+
+  const group = original => {
+    return {
+      'id': original.id || original.name || original.value,
+      'name': original.name || original.value,
+      'type': 'group'
+    };
+  };
+
+  const comment = (original, jiraIssue) => {
+    const issueProject = jiraIssue.fields.project;
+    console.log('Converting comment: ' + JSON.stringify(original));
+    const commonCommentObject = {
+      id: original.id,
+      updatedBy: user(original.updateAuthor),
+      text: convertToMarkdown(original.body),
+      created: original.created,
+      updated: original.updated
+    };
+    const serviceDeskProject = jiraUtils.isServiceDeskProject(issueProject);
+
+    if (!serviceDeskProject) {
+      const convertedVisibility = client.security.toVisibility(original.visibility, issueProject);
+      return {
+        ...commonCommentObject,
+        author: user(original.author),
+        visibleToUsers: convertedVisibility.users,
+        visibleToGroups: convertedVisibility.groups
+      };
+    }
+    return {
+      ...commonCommentObject,
+      author: user(original.author, jiraIssue),
+      defaultVisibility: !original.jsdPublic
+    };
+  };
+
+  const attachment = original => {
+    return {
+      id: original.id,
+      filename: original.filename,
+      author: user(original.author),
+      updatedBy: user(original.updateAuthor),
+      created: original.created,
+      updated: original.updated,
+      mimeType: original.mimeType,
+      size: original.size
+    };
+  };
+
+  const workItem = original => {
+    return {
+      id: original.id,
+      text: convertToMarkdown(original.comment),
+      author: user(original.author),
+      updatedBy: user(original.updateAuthor),
+      created: original.created,
+      updated: original.updated,
+      started: original.started,
+      duration: original.timeSpentSeconds && Math.floor(original.timeSpentSeconds  / 60) || 1
+    };
+  };
+
+  const dummy = original => {
+    return original;
+  };
+
+  const period = original => {
+    return original && {
+      type: 'period',
+      value: dateTime.toPeriod(parseInt(original) * 1000).toString()
+    };
+  };
+
+  const toString = original => {
+    return '' + original;
+  };
+
+  const ret = {
+    //simple types
+    'string': dummy,
+    'text': convertToMarkdown,
+    'number': toString,
+    'integer': toString,
+    'float': toString,
+    'datetime': dummy,
+    'date': dummy,
+    'period': period,
+    //complex types
+    'user': user,
+    'group': group,
+    'enum': enumField,
+    'ownedField': owned,
+    'version': version,
+    'state': state,
+    'watchers': user,
+    'voters': user,
+    //custom types
+    'tags': tag,
+    'resolution': Resolution,
+    'author': user,
+    'description': convertToMarkdown,
+    'environment': convertToMarkdown,
+    'resolved': dummy,
+
+    'comments': comment,
+    'attachments': attachment,
+    'workItems': workItem,
+
+    'links': jiraLinks.issueLink,
+    'parent': jiraLinks.parent,
+    'com.pyxis.greenhopper.jira:gh-epic-link': jiraLinks.epic
+  };
+  const multi = singleConverter => (jiraValue, jiraIssue, client) => {
+    if (!jiraValue) {
+      return null;
+    }
+    if (!Array.isArray(jiraValue)) { // it's not an array when called to transform events
+      jiraValue = [jiraValue];
+    }
+    return jiraValue.filter(it => it).map(it => singleConverter(it, jiraIssue, client));
+  };
+  Object.keys(ret).forEach((key) => ret[key] = multi(ret[key]));
+  ret.author = user;
+  return ret;
+}
+
+module.exports = Fields;

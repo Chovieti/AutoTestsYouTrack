@@ -1,0 +1,501 @@
+/******/ (function(modules) { // webpackBootstrap
+/******/ 	// install a JSONP callback for chunk loading
+/******/ 	function webpackJsonpCallback(data) {
+/******/ 		var chunkIds = data[0];
+/******/ 		var moreModules = data[1];
+/******/ 		var executeModules = data[2];
+/******/
+/******/ 		// add "moreModules" to the modules object,
+/******/ 		// then flag all "chunkIds" as loaded and fire callback
+/******/ 		var moduleId, chunkId, i = 0, resolves = [];
+/******/ 		for(;i < chunkIds.length; i++) {
+/******/ 			chunkId = chunkIds[i];
+/******/ 			if(Object.prototype.hasOwnProperty.call(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 				resolves.push(installedChunks[chunkId][0]);
+/******/ 			}
+/******/ 			installedChunks[chunkId] = 0;
+/******/ 		}
+/******/ 		for(moduleId in moreModules) {
+/******/ 			if(Object.prototype.hasOwnProperty.call(moreModules, moduleId)) {
+/******/ 				modules[moduleId] = moreModules[moduleId];
+/******/ 			}
+/******/ 		}
+/******/ 		if(parentJsonpFunction) parentJsonpFunction(data);
+/******/
+/******/ 		while(resolves.length) {
+/******/ 			resolves.shift()();
+/******/ 		}
+/******/
+/******/ 		// add entry modules from loaded chunk to deferred list
+/******/ 		deferredModules.push.apply(deferredModules, executeModules || []);
+/******/
+/******/ 		// run deferred modules when all chunks ready
+/******/ 		return checkDeferredModules();
+/******/ 	};
+/******/ 	function checkDeferredModules() {
+/******/ 		var result;
+/******/ 		for(var i = 0; i < deferredModules.length; i++) {
+/******/ 			var deferredModule = deferredModules[i];
+/******/ 			var fulfilled = true;
+/******/ 			for(var j = 1; j < deferredModule.length; j++) {
+/******/ 				var depId = deferredModule[j];
+/******/ 				if(installedChunks[depId] !== 0) fulfilled = false;
+/******/ 			}
+/******/ 			if(fulfilled) {
+/******/ 				deferredModules.splice(i--, 1);
+/******/ 				result = __webpack_require__(__webpack_require__.s = deferredModule[0]);
+/******/ 			}
+/******/ 		}
+/******/
+/******/ 		return result;
+/******/ 	}
+/******/
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// object to store loaded and loading chunks
+/******/ 	// undefined = chunk not loaded, null = chunk preloaded/prefetched
+/******/ 	// Promise = chunk loading, 0 = chunk loaded
+/******/ 	var installedChunks = {
+/******/ 		"hub-project-team-widget": 0
+/******/ 	};
+/******/
+/******/ 	var deferredModules = [];
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId]) {
+/******/ 			return installedModules[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			i: moduleId,
+/******/ 			l: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.l = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// define getter function for harmony exports
+/******/ 	__webpack_require__.d = function(exports, name, getter) {
+/******/ 		if(!__webpack_require__.o(exports, name)) {
+/******/ 			Object.defineProperty(exports, name, { enumerable: true, get: getter });
+/******/ 		}
+/******/ 	};
+/******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__webpack_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = __webpack_require__(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;
+/******/ 		var ns = Object.create(null);
+/******/ 		__webpack_require__.r(ns);
+/******/ 		Object.defineProperty(ns, 'default', { enumerable: true, value: value });
+/******/ 		if(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));
+/******/ 		return ns;
+/******/ 	};
+/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = function(module) {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			function getDefault() { return module['default']; } :
+/******/ 			function getModuleExports() { return module; };
+/******/ 		__webpack_require__.d(getter, 'a', getter);
+/******/ 		return getter;
+/******/ 	};
+/******/
+/******/ 	// Object.prototype.hasOwnProperty.call
+/******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/ 	var jsonpArray = window["webpackJsonp"] = window["webpackJsonp"] || [];
+/******/ 	var oldJsonpFunction = jsonpArray.push.bind(jsonpArray);
+/******/ 	jsonpArray.push = webpackJsonpCallback;
+/******/ 	jsonpArray = jsonpArray.slice();
+/******/ 	for(var i = 0; i < jsonpArray.length; i++) webpackJsonpCallback(jsonpArray[i]);
+/******/ 	var parentJsonpFunction = oldJsonpFunction;
+/******/
+/******/
+/******/ 	// add entry module to deferred list
+/******/ 	deferredModules.push(["./widgets/hub-project-team-widget/app/app.js","vendors~hub-project-team-widget~revoke-user-access","vendors~hub-project-team-widget"]);
+/******/ 	// run deferred modules when ready
+/******/ 	return checkDeferredModules();
+/******/ })
+/************************************************************************/
+/******/ ({
+
+/***/ "./node_modules/css-loader/index.js?!./widgets/hub-project-team-widget/app/app.css":
+/*!******************************************************************************************!*\
+  !*** ./node_modules/css-loader??ref--13-1!./widgets/hub-project-team-widget/app/app.css ***!
+  \******************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+eval("exports = module.exports = __webpack_require__(/*! ../../../node_modules/css-loader/lib/css-base.js */ \"./node_modules/css-loader/lib/css-base.js\")(false);\n// imports\nexports.i(__webpack_require__(/*! -!../../../node_modules/css-loader??ref--13-1!@jetbrains/ring-ui/components/global/variables.css */ \"./node_modules/css-loader/index.js?!./node_modules/@jetbrains/ring-ui/components/global/variables.css\"), \"\");\nexports.i(__webpack_require__(/*! -!../../../node_modules/css-loader??ref--13-1!@jetbrains/ring-ui/components/global/global.css */ \"./node_modules/css-loader/index.js?!./node_modules/@jetbrains/ring-ui/components/global/global.css\"), undefined);\n\n// module\nexports.push([module.i, \".widget-body {\\n  margin: 0;\\n  padding: calc(\" + __webpack_require__(/*! -!../../../node_modules/css-loader??ref--13-1!@jetbrains/ring-ui/components/global/global.css */ \"./node_modules/css-loader/index.js?!./node_modules/@jetbrains/ring-ui/components/global/global.css\").locals[\"unit\"] + \" * 2);\\n\\n  color: var(--ring-text-color);\\n  background: var(--ring-content-background-color);\\n\\n  font-size: var(--ring-font-size);\\n}\\n\\n.SoGc013ECeKpYBFRiniVX {\\n\\n  margin: 0;\\n  padding: 0;\\n}\\n\\n._1yQc4MGA-YFoWNBp7kBHdG:not(:last-child) {\\n  margin-bottom: 16px;\\n}\\n\\n.wL2BcvBvSZrlrk12_If-w {\\n  float: left;\\n\\n  margin-right: 10px;\\n}\\n\\n._32CorsxkgRCts3VMSqjGGr {\\n  display: flex;\\n  flex-direction: column;\\n  justify-content: space-between;\\n\\n  height: 32px;\\n\\n  line-height: 15px;\\n}\\n\\n._2STk2FqtiZhaWuYwF7zg27 {\\n  font-size: var(--ring-font-size-smaller);\\n}\\n\\n._3w2WkD5KkRJpyICCTSYDgS {\\n  position: absolute;\\n\\n  height: auto;\\n  margin-top: -2px;\\n  margin-left: 8px;\\n  padding: 1px 6px;\\n}\\n\\n._1QCi2LsFnsELQAybkByXhL {\\n  margin-bottom: 8px;\\n\\n  letter-spacing: 2px;\\n\\n  text-transform: uppercase;\\n\\n  color: var(--ring-secondary-color);\\n\\n  font-size: 11px;\\n}\\n\\n.Zr4ypVkIb9K_Q0LZOXv2o {\\n  margin-bottom: 16px;\\n}\\n\", \"\"]);\n\n// exports\nexports.locals = {\n\t\"unit\": \"\" + __webpack_require__(/*! -!../../../node_modules/css-loader??ref--13-1!@jetbrains/ring-ui/components/global/global.css */ \"./node_modules/css-loader/index.js?!./node_modules/@jetbrains/ring-ui/components/global/global.css\").locals[\"unit\"] + \"\",\n\t\"widget\": \"SoGc013ECeKpYBFRiniVX \" + __webpack_require__(/*! -!../../../node_modules/css-loader??ref--13-1!@jetbrains/ring-ui/components/global/global.css */ \"./node_modules/css-loader/index.js?!./node_modules/@jetbrains/ring-ui/components/global/global.css\").locals[\"font\"] + \"\",\n\t\"user\": \"_1yQc4MGA-YFoWNBp7kBHdG\",\n\t\"userAvatar\": \"wL2BcvBvSZrlrk12_If-w\",\n\t\"userInfo\": \"_32CorsxkgRCts3VMSqjGGr\",\n\t\"userEmail\": \"_2STk2FqtiZhaWuYwF7zg27\",\n\t\"badge\": \"_3w2WkD5KkRJpyICCTSYDgS\",\n\t\"listSectionHeader\": \"_1QCi2LsFnsELQAybkByXhL\",\n\t\"listSection\": \"Zr4ypVkIb9K_Q0LZOXv2o\"\n};\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/app.css");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/app.css":
+/*!*****************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/app.css ***!
+  \*****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+eval("\nvar content = __webpack_require__(/*! !../../../node_modules/css-loader??ref--13-1!./app.css */ \"./node_modules/css-loader/index.js?!./widgets/hub-project-team-widget/app/app.css\");\n\nif(typeof content === 'string') content = [[module.i, content, '']];\n\nvar transform;\nvar insertInto;\n\n\n\nvar options = {\"hmr\":true}\n\noptions.transform = transform\noptions.insertInto = undefined;\n\nvar update = __webpack_require__(/*! ../../../node_modules/style-loader/lib/addStyles.js */ \"./node_modules/style-loader/lib/addStyles.js\")(content, options);\n\nif(content.locals) module.exports = content.locals;\n\nif(false) {}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/app.css");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/app.js":
+/*!****************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/app.js ***!
+  \****************************************************/
+/*! no exports provided */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var hub_dashboard_addons__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! hub-dashboard-addons */ \"./node_modules/hub-dashboard-addons/dist/dashboard-api.js\");\n/* harmony import */ var hub_dashboard_addons__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(hub_dashboard_addons__WEBPACK_IMPORTED_MODULE_0__);\n/* harmony import */ var hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! hub-dashboard-addons/dist/localization */ \"./node_modules/hub-dashboard-addons/dist/localization.js\");\n/* harmony import */ var hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__);\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react */ \"./node_modules/react/index.js\");\n/* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_2__);\n/* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! prop-types */ \"./node_modules/prop-types/index.js\");\n/* harmony import */ var prop_types__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(prop_types__WEBPACK_IMPORTED_MODULE_3__);\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! react-dom */ \"./node_modules/react-dom/index.js\");\n/* harmony import */ var react_dom__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__webpack_require__.n(react_dom__WEBPACK_IMPORTED_MODULE_4__);\n/* harmony import */ var _jetbrains_ring_ui_components_select_select__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @jetbrains/ring-ui/components/select/select */ \"./node_modules/@jetbrains/ring-ui/components/select/select.js\");\n/* harmony import */ var _jetbrains_ring_ui_components_link_link__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @jetbrains/ring-ui/components/link/link */ \"./node_modules/@jetbrains/ring-ui/components/link/link.js\");\n/* harmony import */ var _jetbrains_ring_ui_components_avatar_avatar__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @jetbrains/ring-ui/components/avatar/avatar */ \"./node_modules/@jetbrains/ring-ui/components/avatar/avatar.js\");\n/* harmony import */ var _jetbrains_ring_ui_components_loader_inline_loader_inline__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @jetbrains/ring-ui/components/loader-inline/loader-inline */ \"./node_modules/@jetbrains/ring-ui/components/loader-inline/loader-inline.js\");\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_configurable_widget__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @jetbrains/hub-widget-ui/dist/configurable-widget */ \"./node_modules/@jetbrains/hub-widget-ui/dist/configurable-widget.js\");\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_configurable_widget__WEBPACK_IMPORTED_MODULE_9___default = /*#__PURE__*/__webpack_require__.n(_jetbrains_hub_widget_ui_dist_configurable_widget__WEBPACK_IMPORTED_MODULE_9__);\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @jetbrains/hub-widget-ui/dist/empty-widget */ \"./node_modules/@jetbrains/hub-widget-ui/dist/empty-widget.js\");\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10___default = /*#__PURE__*/__webpack_require__.n(_jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10__);\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_configuration_form__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @jetbrains/hub-widget-ui/dist/configuration-form */ \"./node_modules/@jetbrains/hub-widget-ui/dist/configuration-form.js\");\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_configuration_form__WEBPACK_IMPORTED_MODULE_11___default = /*#__PURE__*/__webpack_require__.n(_jetbrains_hub_widget_ui_dist_configuration_form__WEBPACK_IMPORTED_MODULE_11__);\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_permissions__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @jetbrains/hub-widget-ui/dist/permissions */ \"./node_modules/@jetbrains/hub-widget-ui/dist/permissions.js\");\n/* harmony import */ var _jetbrains_hub_widget_ui_dist_permissions__WEBPACK_IMPORTED_MODULE_12___default = /*#__PURE__*/__webpack_require__.n(_jetbrains_hub_widget_ui_dist_permissions__WEBPACK_IMPORTED_MODULE_12__);\n/* harmony import */ var _translations__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ./translations */ \"./widgets/hub-project-team-widget/app/translations.js\");\n/* harmony import */ var _app_css__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ./app.css */ \"./widgets/hub-project-team-widget/app/app.css\");\n/* harmony import */ var _app_css__WEBPACK_IMPORTED_MODULE_14___default = /*#__PURE__*/__webpack_require__.n(_app_css__WEBPACK_IMPORTED_MODULE_14__);\n\n\nvar _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i[\"return\"]) _i[\"return\"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError(\"Invalid attempt to destructure non-iterable instance\"); } }; }();\n\nvar _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if (\"value\" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();\n\nfunction _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step(\"next\", value); }, function (err) { step(\"throw\", err); }); } } return step(\"next\"); }); }; }\n\nfunction _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\"); } }\n\nfunction _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError(\"this hasn't been initialised - super() hasn't been called\"); } return call && (typeof call === \"object\" || typeof call === \"function\") ? call : self; }\n\nfunction _inherits(subClass, superClass) { if (typeof superClass !== \"function\" && superClass !== null) { throw new TypeError(\"Super expression must either be null or a function, not \" + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nvar Widget = function (_Component) {\n  _inherits(Widget, _Component);\n\n  function Widget(props) {\n    var _this2 = this;\n\n    _classCallCheck(this, Widget);\n\n    var _this = _possibleConstructorReturn(this, (Widget.__proto__ || Object.getPrototypeOf(Widget)).call(this, props));\n\n    _this.saveConfig = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee() {\n      var selectedProject;\n      return regeneratorRuntime.wrap(function _callee$(_context) {\n        while (1) {\n          switch (_context.prev = _context.next) {\n            case 0:\n              selectedProject = _this.state.selectedProject;\n              _context.next = 3;\n              return _this.props.dashboardApi.storeConfig({ selectedProject: selectedProject });\n\n            case 3:\n              _this.setState({ isConfiguring: false });\n\n            case 4:\n            case 'end':\n              return _context.stop();\n          }\n        }\n      }, _callee, _this2);\n    }));\n    _this.cancelConfig = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee2() {\n      var dashboardApi, config;\n      return regeneratorRuntime.wrap(function _callee2$(_context2) {\n        while (1) {\n          switch (_context2.prev = _context2.next) {\n            case 0:\n              dashboardApi = _this.props.dashboardApi;\n              _context2.next = 3;\n              return dashboardApi.readConfig();\n\n            case 3:\n              config = _context2.sent;\n\n              if (config) {\n                _context2.next = 8;\n                break;\n              }\n\n              dashboardApi.removeWidget();\n              _context2.next = 12;\n              break;\n\n            case 8:\n              _this.setState({ isConfiguring: false });\n              _context2.next = 11;\n              return dashboardApi.exitConfigMode();\n\n            case 11:\n              _this.initialize(dashboardApi);\n\n            case 12:\n            case 'end':\n              return _context2.stop();\n          }\n        }\n      }, _callee2, _this2);\n    }));\n\n    _this.changeProject = function (selectedProject) {\n      return _this.setState({ selectedProject: selectedProject });\n    };\n\n    _this.renderConfiguration = function () {\n      var _this$state = _this.state,\n          projects = _this$state.projects,\n          selectedProject = _this$state.selectedProject;\n\n\n      var data = projects.map(function (project) {\n        return {\n          key: project.id,\n          label: project.name\n        };\n      });\n\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        _jetbrains_hub_widget_ui_dist_configuration_form__WEBPACK_IMPORTED_MODULE_11___default.a,\n        {\n          onCancel: _this.cancelConfig,\n          onSave: _this.saveConfig,\n          isInvalid: !selectedProject\n        },\n        react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_ring_ui_components_select_select__WEBPACK_IMPORTED_MODULE_5__[\"default\"], {\n          size: _jetbrains_ring_ui_components_select_select__WEBPACK_IMPORTED_MODULE_5__[\"default\"].Size.FULL,\n          data: data,\n          selected: selectedProject,\n          onChange: _this.changeProject,\n          label: Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('Select a project'),\n          filter: true\n        })\n      );\n    };\n\n    _this.renderNoTeamWidgetContent = function () {\n      var selectedProject = _this.state.selectedProject;\n\n\n      var noProjectMessage = selectedProject && selectedProject.label ? Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('The {{projectName}} project team doesn\\'t have any members', { projectName: selectedProject.label }) : Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('This project team doesn\\'t have any members');\n\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10___default.a, {\n        face: _jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10__[\"EmptyWidgetFaces\"].OK,\n        message: noProjectMessage\n      });\n    };\n\n    _this.renderNoPermissionsWidgetContent = function (canReadUsers) {\n      var noPermissionsMessage = canReadUsers ? Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('You don\\'t have permission to view basic project data') : Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('You don\\'t have permission to view basic profile data for other users');\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10___default.a, {\n        face: _jetbrains_hub_widget_ui_dist_empty_widget__WEBPACK_IMPORTED_MODULE_10__[\"EmptyWidgetFaces\"].ERROR,\n        message: noPermissionsMessage\n      });\n    };\n\n    _this.renderEmptyWidgetContent = function () {\n      var _this$state2 = _this.state,\n          permissions = _this$state2.permissions,\n          selectedProject = _this$state2.selectedProject;\n\n\n      var projectId = (selectedProject || {}).id;\n      var canReadUsers = permissions && permissions.has('jetbrains.jetpass.user-read-basic', projectId);\n      var canReadProject = permissions && permissions.has('jetbrains.jetpass.project-read-basic', projectId);\n      if (canReadUsers && canReadProject) {\n        return _this.renderNoTeamWidgetContent();\n      }\n      return _this.renderNoPermissionsWidgetContent(canReadUsers);\n    };\n\n    _this.renderUser = function (user) {\n      var homeUrl = _this.state.homeUrl;\n\n\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        'div',\n        { key: user.id, className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.user },\n        react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n          'div',\n          { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.userAvatar },\n          react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_ring_ui_components_avatar_avatar__WEBPACK_IMPORTED_MODULE_7__[\"default\"], {\n            style: { verticalAlign: 'middle' },\n            url: user.avatarUrl,\n            size: _jetbrains_ring_ui_components_avatar_avatar__WEBPACK_IMPORTED_MODULE_7__[\"Size\"].Size32\n          })\n        ),\n        react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n          'div',\n          { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.userInfo },\n          react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n            'div',\n            null,\n            react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n              _jetbrains_ring_ui_components_link_link__WEBPACK_IMPORTED_MODULE_6__[\"default\"],\n              { href: homeUrl + '/users/' + user.id, target: '_blank' },\n              user.name\n            )\n          ),\n          react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n            'div',\n            { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.userEmail },\n            user.email\n          )\n        )\n      );\n    };\n\n    _this.renderOwnerSection = function (owner, ownerIsInTeam) {\n      return ownerIsInTeam && react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        'div',\n        { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.listSection },\n        react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n          'div',\n          { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.listSectionHeader },\n          Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('project owner')\n        ),\n        _this.renderUser(owner)\n      );\n    };\n\n    _this.renderRestOfTeamSection = function (restOfTeam, ownerIsInTeam) {\n      return !!restOfTeam.length && react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        'div',\n        { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.listSection },\n        ownerIsInTeam && react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n          'div',\n          { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.listSectionHeader },\n          Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_1__[\"i18n\"])('team')\n        ),\n        restOfTeam.map(function (user) {\n          return _this.renderUser(user);\n        })\n      );\n    };\n\n    _this.renderContent = function () {\n      var _this$state3 = _this.state,\n          users = _this$state3.users,\n          owner = _this$state3.owner,\n          homeUrl = _this$state3.homeUrl,\n          permissions = _this$state3.permissions;\n\n\n      if (!users || !permissions || !permissions.isInitialized() || homeUrl === null) {\n        return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_ring_ui_components_loader_inline_loader_inline__WEBPACK_IMPORTED_MODULE_8__[\"default\"], null);\n      }\n\n      if (!users.length) {\n        return _this.renderEmptyWidgetContent();\n      }\n\n      var restOfTeam = (users || []).filter(function (user) {\n        return user.id !== (owner || {}).id;\n      });\n      var ownerIsInTeam = users.length - restOfTeam.length === 1;\n\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        'div',\n        { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.widget },\n        _this.renderOwnerSection(owner, ownerIsInTeam),\n        _this.renderRestOfTeamSection(restOfTeam, ownerIsInTeam)\n      );\n    };\n\n    var registerWidgetApi = props.registerWidgetApi;\n\n\n    _this.state = {\n      isConfiguring: false,\n      selectedProject: null,\n      projects: [],\n      users: [],\n      owner: null,\n      homeUrl: null\n    };\n\n    registerWidgetApi({\n      onConfigure: function onConfigure() {\n        return _this.setState({ isConfiguring: true });\n      },\n      getExternalWidgetOptions: function getExternalWidgetOptions() {\n        return { authClientId: '0-0-0-0-0' };\n      }\n    });\n    return _this;\n  }\n\n  _createClass(Widget, [{\n    key: 'componentDidMount',\n    value: function componentDidMount() {\n      var _this3 = this;\n\n      var dashboardApi = this.props.dashboardApi;\n\n      this.initialize(this.props.dashboardApi);\n      _jetbrains_hub_widget_ui_dist_permissions__WEBPACK_IMPORTED_MODULE_12___default.a.init(dashboardApi).then(function () {\n        return _this3.setState({ permissions: _jetbrains_hub_widget_ui_dist_permissions__WEBPACK_IMPORTED_MODULE_12___default.a });\n      });\n    }\n  }, {\n    key: 'componentWillUpdate',\n    value: function componentWillUpdate(nextProps, nextState) {\n      if (nextState.selectedProject && (!this.state.selectedProject || this.state.selectedProject.key !== nextState.selectedProject.key)) {\n        this.loadProjectTeam(nextState.selectedProject.key);\n      }\n    }\n  }, {\n    key: 'updateTitle',\n    value: function updateTitle() {\n      var _state = this.state,\n          teamName = _state.teamName,\n          users = _state.users,\n          homeUrl = _state.homeUrl,\n          selectedProject = _state.selectedProject;\n\n\n      if (!teamName || !users || !selectedProject) {\n        return this.setState({ title: undefined });\n      }\n\n      var href = homeUrl !== null ? homeUrl + '/projects/' + selectedProject.key + '?tab=people' : undefined;\n\n      var title = { text: teamName, href: href, counter: users.length };\n      return this.setState({ title: title });\n    }\n  }, {\n    key: 'loadProjectTeam',\n    value: function () {\n      var _ref3 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee3(projectId) {\n        var _this4 = this;\n\n        var dashboardApi, project, teamMembers, owner, users;\n        return regeneratorRuntime.wrap(function _callee3$(_context3) {\n          while (1) {\n            switch (_context3.prev = _context3.next) {\n              case 0:\n                dashboardApi = this.props.dashboardApi;\n                _context3.next = 3;\n                return dashboardApi.fetchYouTrack('admin/projects/' + projectId, {\n                  query: {\n                    fields: 'team(name,users(id,login,name,avatarUrl,email)),leader(id)'\n                  }\n                });\n\n              case 3:\n                project = _context3.sent;\n                teamMembers = project.team.users || [];\n                owner = project.leader ? teamMembers.filter(function (user) {\n                  return user.id === project.leader.id;\n                })[0] : null;\n                users = teamMembers.filter(function (user) {\n                  return user !== owner;\n                }).sort(function (a, b) {\n                  return a.name.localeCompare(b.name);\n                });\n\n\n                if (owner) {\n                  users.unshift(owner);\n                }\n\n                this.setState({ users: users, owner: owner, teamName: project.team.name }, function () {\n                  return _this4.updateTitle();\n                });\n\n              case 9:\n              case 'end':\n                return _context3.stop();\n            }\n          }\n        }, _callee3, this);\n      }));\n\n      function loadProjectTeam(_x) {\n        return _ref3.apply(this, arguments);\n      }\n\n      return loadProjectTeam;\n    }()\n  }, {\n    key: 'initialize',\n    value: function () {\n      var _ref4 = _asyncToGenerator( /*#__PURE__*/regeneratorRuntime.mark(function _callee4(dashboardApi) {\n        var _this5 = this;\n\n        var _ref5, _ref6, projects, contextPath, config, homeUrl, selectedProject;\n\n        return regeneratorRuntime.wrap(function _callee4$(_context4) {\n          while (1) {\n            switch (_context4.prev = _context4.next) {\n              case 0:\n                _context4.next = 2;\n                return Promise.all([dashboardApi.fetchYouTrack('admin/projects', {\n                  query: {\n                    fields: 'id,name',\n                    orderBy: 'name',\n                    $top: -1\n                  }\n                }), dashboardApi.fetchYouTrack('config?fields=contextPath'), dashboardApi.readConfig()]);\n\n              case 2:\n                _ref5 = _context4.sent;\n                _ref6 = _slicedToArray(_ref5, 3);\n                projects = _ref6[0];\n                contextPath = _ref6[1].contextPath;\n                config = _ref6[2];\n                homeUrl = contextPath ? contextPath + '/' : '';\n\n\n                this.setState({ projects: projects, homeUrl: homeUrl }, function () {\n                  return _this5.updateTitle();\n                });\n\n                if (config) {\n                  _context4.next = 13;\n                  break;\n                }\n\n                dashboardApi.enterConfigMode();\n                this.setState({ isConfiguring: true });\n                return _context4.abrupt('return');\n\n              case 13:\n                selectedProject = config.selectedProject;\n\n\n                this.setState({ selectedProject: selectedProject });\n\n                this.loadProjectTeam(selectedProject.key);\n\n              case 16:\n              case 'end':\n                return _context4.stop();\n            }\n          }\n        }, _callee4, this);\n      }));\n\n      function initialize(_x2) {\n        return _ref4.apply(this, arguments);\n      }\n\n      return initialize;\n    }()\n  }, {\n    key: 'render',\n    value: function render() {\n      return react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(\n        'div',\n        { className: _app_css__WEBPACK_IMPORTED_MODULE_14___default.a.widget },\n        react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(_jetbrains_hub_widget_ui_dist_configurable_widget__WEBPACK_IMPORTED_MODULE_9___default.a, {\n          isConfiguring: this.state.isConfiguring,\n          dashboardApi: this.props.dashboardApi,\n          widgetTitle: this.state.title,\n          widgetLoader: !this.state.users,\n          Configuration: this.renderConfiguration,\n          Content: this.renderContent\n        })\n      );\n    }\n  }]);\n\n  return Widget;\n}(react__WEBPACK_IMPORTED_MODULE_2__[\"Component\"]);\n\nWidget.propTypes = {\n  dashboardApi: prop_types__WEBPACK_IMPORTED_MODULE_3___default.a.object,\n  permissions: prop_types__WEBPACK_IMPORTED_MODULE_3___default.a.object,\n  registerWidgetApi: prop_types__WEBPACK_IMPORTED_MODULE_3___default.a.func\n};\n\n\nhub_dashboard_addons__WEBPACK_IMPORTED_MODULE_0___default.a.registerWidget(function (dashboardApi, registerWidgetApi) {\n  Object(_translations__WEBPACK_IMPORTED_MODULE_13__[\"initTranslations\"])(hub_dashboard_addons__WEBPACK_IMPORTED_MODULE_0___default.a.locale);\n\n  Object(react_dom__WEBPACK_IMPORTED_MODULE_4__[\"render\"])(react__WEBPACK_IMPORTED_MODULE_2___default.a.createElement(Widget, {\n    dashboardApi: dashboardApi,\n    registerWidgetApi: registerWidgetApi\n  }), document.getElementById('app-container'));\n});\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/app.js");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations sync recursive \\.po$":
+/*!*********************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations sync \.po$ ***!
+  \*********************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+eval("var map = {\n\t\"./hub-project-team-widget_af.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_af.po\",\n\t\"./hub-project-team-widget_ar.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ar.po\",\n\t\"./hub-project-team-widget_cs.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_cs.po\",\n\t\"./hub-project-team-widget_da.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_da.po\",\n\t\"./hub-project-team-widget_de.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_de.po\",\n\t\"./hub-project-team-widget_eo.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_eo.po\",\n\t\"./hub-project-team-widget_es.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_es.po\",\n\t\"./hub-project-team-widget_fa.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fa.po\",\n\t\"./hub-project-team-widget_fr.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fr.po\",\n\t\"./hub-project-team-widget_he.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_he.po\",\n\t\"./hub-project-team-widget_hu.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_hu.po\",\n\t\"./hub-project-team-widget_it.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_it.po\",\n\t\"./hub-project-team-widget_ja.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ja.po\",\n\t\"./hub-project-team-widget_kaa.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_kaa.po\",\n\t\"./hub-project-team-widget_ko.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ko.po\",\n\t\"./hub-project-team-widget_nl.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_nl.po\",\n\t\"./hub-project-team-widget_pl.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pl.po\",\n\t\"./hub-project-team-widget_pt.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pt.po\",\n\t\"./hub-project-team-widget_ru.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ru.po\",\n\t\"./hub-project-team-widget_th.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_th.po\",\n\t\"./hub-project-team-widget_tr.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_tr.po\",\n\t\"./hub-project-team-widget_uk.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uk.po\",\n\t\"./hub-project-team-widget_uz.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uz.po\",\n\t\"./hub-project-team-widget_zh.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zh.po\",\n\t\"./hub-project-team-widget_zt.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zt.po\",\n\t\"./hub-project-team-widget_zu.po\": \"./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zu.po\"\n};\n\n\nfunction webpackContext(req) {\n\tvar id = webpackContextResolve(req);\n\treturn __webpack_require__(id);\n}\nfunction webpackContextResolve(req) {\n\tif(!__webpack_require__.o(map, req)) {\n\t\tvar e = new Error(\"Cannot find module '\" + req + \"'\");\n\t\te.code = 'MODULE_NOT_FOUND';\n\t\tthrow e;\n\t}\n\treturn map[req];\n}\nwebpackContext.keys = function webpackContextKeys() {\n\treturn Object.keys(map);\n};\nwebpackContext.resolve = webpackContextResolve;\nmodule.exports = webpackContext;\nwebpackContext.id = \"./widgets/hub-project-team-widget/app/translations sync recursive \\\\.po$\";\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations_sync_/\\.po$/");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations.js":
+/*!*************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations.js ***!
+  \*************************************************************/
+/*! exports provided: initTranslations */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, \"initTranslations\", function() { return initTranslations; });\n/* harmony import */ var hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! hub-dashboard-addons/dist/localization */ \"./node_modules/hub-dashboard-addons/dist/localization.js\");\n/* harmony import */ var hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_0__);\n\n\nvar _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };\n\n\n\nvar translationFiles = __webpack_require__(\"./widgets/hub-project-team-widget/app/translations sync recursive \\\\.po$\");\n\nvar translations = translationFiles.keys().reduce(function (result, fileKey) {\n  var lang = fileKey.split('.po')[0].split('_')[1];\n  var fileJson = translationFiles(fileKey);\n  result[lang] = Object.keys(fileJson).reduce(function (accumulator, propertyKey) {\n    return _extends({}, accumulator, fileJson[propertyKey]);\n  }, {});\n  return result;\n}, {});\n\nfunction initTranslations(locale) {\n  if (translations[locale]) {\n    Object(hub_dashboard_addons_dist_localization__WEBPACK_IMPORTED_MODULE_0__[\"setLocale\"])(locale, translations);\n  }\n}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations.js");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_af.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_af.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"af_ZA\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_af.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ar.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ar.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"ar_SA\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ar.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_cs.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_cs.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"cs_CZ\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Leden|Únor|Březen|Duben|Květen|Červen|Červenec|Srpen|Září|Říjen|Listopad|Prosinec\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Led|Úno|Bře|Dub|Kvě|Čer|Čvc|Srp|Zář|Říj|Lis|Pro\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Neděle|Pondělí|Úterý|Středa|Čtvrtek|Pátek|Sobota\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Ne|Po|Út|St|Čt|Pá|So\",\"am|pm\":\"dopol|odpol\",\"project owner\":\"vlastník projektu\",\"team\":\"tým\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_cs.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_da.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_da.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"da_DK\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_da.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_de.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_de.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"de_DE\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Jan|Feb|Mär|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez\",\"Select a project\":\"Projekt auswählen\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"So|Mo|Di|Mi|Do|Fr|Sa\",\"The {{projectName}} project team doesn't have any members\":\"Das {{projectName}}-Projektteam hat keine Mitglieder\",\"This project team doesn't have any members\":\"Dieses Projektteam hat keine Mitglieder\",\"You don't have permission to view basic profile data for other users\":\"Sie sind nicht berechtigt, die grundlegenden Profildaten anderer Benutzer einzusehen\",\"You don't have permission to view basic project data\":\"Sie sind nicht berechtigt, die grundlegenden Projektdaten einzusehen\",\"am|pm\":\"AM|PM\",\"project owner\":\"Projektbesitzer\",\"team\":\"Team\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_de.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_eo.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_eo.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"eo_UY\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"crwdns738242:0crwdne738242:0\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"crwdns738243:0crwdne738243:0\",\"Select a project\":\"crwdns738245:0crwdne738245:0\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"crwdns738246:0crwdne738246:0\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"crwdns738247:0crwdne738247:0\",\"The {{projectName}} project team doesn't have any members\":\"crwdns2719452:0{{projectName}}crwdne2719452:0\",\"This project team doesn't have any members\":\"crwdns2719454:0crwdne2719454:0\",\"You don't have permission to view basic profile data for other users\":\"crwdns2719456:0crwdne2719456:0\",\"You don't have permission to view basic project data\":\"crwdns2719458:0crwdne2719458:0\",\"am|pm\":\"crwdns738248:0crwdne738248:0\",\"project owner\":\"crwdns738249:0crwdne738249:0\",\"team\":\"crwdns2723270:0crwdne2723270:0\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_eo.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_es.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_es.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"es_ES\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Ene|Feb|Mar|Abr|May|Jun|Jul|Ago|Sep|Oct|Nov|Dic\",\"Select a project\":\"Seleccionar proyecto\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Domingo|Lunes|Martes|Miércoles|Jueves|Viernes|Sábado\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Dom|Lun|Mar|Mié|Jue|Vie|Sáb\",\"The {{projectName}} project team doesn't have any members\":\"El equipo del proyecto {{projectName}} no tiene ningún miembro\",\"This project team doesn't have any members\":\"Este equipo del proyecto no tiene ningún miembro\",\"You don't have permission to view basic profile data for other users\":\"No tiene el permiso necesario para ver la información de perfil básica de otros usuarios\",\"You don't have permission to view basic project data\":\"No tiene permiso para ver la información del proyecto básica\",\"am|pm\":\"a. m. |p. m.\",\"project owner\":\"propietario del proyecto\",\"team\":\"equipo\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_es.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fa.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fa.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"fa_IR\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fa.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fr.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fr.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"fr_FR\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Janvier|Février|Mars|Avril|Mai|Juin|Juillet|Août|Septembre|Octobre|Novembre|Décembre\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Jan|Fév|Mar|Avr|Mai|Jun|Jul|Aoû|Sep|Oct|Nov|Déc\",\"Select a project\":\"Sélectionner un projet\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Dimanche|Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Dim|Lun|Mar|Mer|Jeu|Ven|Sam\",\"The {{projectName}} project team doesn't have any members\":\"L'équipe du projet {{projectName}} ne comporte aucun membre\",\"This project team doesn't have any members\":\"L'équipe de ce projet ne comporte aucun membre\",\"You don't have permission to view basic profile data for other users\":\"Vous n’avez pas l’autorisation de consulter les données de base des profils des autres utilisateurs\",\"You don't have permission to view basic project data\":\"Vous n’avez pas l’autorisation de consulter les données de base du projet\",\"am|pm\":\"am|pm\",\"project owner\":\"propriétaire du projet\",\"team\":\"équipe\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_fr.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_he.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_he.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"he_IL\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"ינואר|פברואר|מרץ|אפריל|מאי|יוני|יולי|אוגוסט|ספטמבר|אוקטובר|נובמבר|דצמבר\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"ינו'|פבר'|מרץ|אפר'|מאי|יונ'|יול'|אוג'|ספט'|אוק'|נוב'|דצמ'\",\"Select a project\":\"בחירת פרויקט\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"א'|ב'|ג'|ד'|ה'|ו'|ש'\",\"am|pm\":\"לפנ\\\"צ|אחה\\\"צ\",\"project owner\":\"בעל הפרויקט\",\"team\":\"צוות\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_he.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_hu.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_hu.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"hu_HU\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Január|Február|Március|Április|Május|Június|Július|Augusztus|Szeptember|Október|November|December\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Jan|Febr|Már|Ápr|Máj|Jún|Júl|Aug|Szept|Okt|Nov|Dec\",\"Select a project\":\"Válasszon projektet\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Vasárnap|Hétfő|Kedd|Szerda|Csütörtök|Péntek|Szombat\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Vas|Hét|Ked|Sze|Csü|Pén|Szo\",\"The {{projectName}} project team doesn't have any members\":\"A {{projectName}} projektcsapatnak nincsenek tagjai\",\"This project team doesn't have any members\":\"Ennek a projektcsapatnak nincsenek tagjai\",\"You don't have permission to view basic profile data for other users\":\"Nincs engedélye más felhasználók alapvető profiladatainak megtekintésére\",\"You don't have permission to view basic project data\":\"Nincs engedélye az alapszintű projektadatok megtekintésére\",\"am|pm\":\"am|pm\",\"project owner\":\"projekt tulajdonos\",\"team\":\"csapat\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_hu.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_it.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_it.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"it_IT\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Gennaio|Febbraio|Marzo|Aprile|Maggio|Giugno|Luglio|Agosto|Settembre|Ottobre|Novembre|Dicembre\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Gen|Feb|Mar|Apr|Mag|Giu|Lug|Ago|Set|Ott|Nov|Dic\",\"Select a project\":\"Seleziona un progetto\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Domenica|Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Dom|Lun|Mar|Mer|Gio|Ven|Sab\",\"The {{projectName}} project team doesn't have any members\":\"Il team del progetto {{projectName}} non ha membri\",\"This project team doesn't have any members\":\"Questo team del progetto non ha membri\",\"You don't have permission to view basic profile data for other users\":\"Non si dispone dell'autorizzazione per visualizzare i dati di base del profilo per altri utenti\",\"You don't have permission to view basic project data\":\"Non si dispone dell'autorizzazione per visualizzare i dati di base del progetto\",\"am|pm\":\"am|pm\",\"project owner\":\"proprietario del progetto\",\"team\":\"team\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_it.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ja.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ja.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"ja_JP\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"1月|2月|3月|4月|5月|6月|7月|8月|9月|10月|11月|12月\",\"Select a project\":\"プロジェクトの選択\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"日曜日|月曜日|火曜日|水曜日|木曜日|金曜日|土曜日\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"日|月|火|水|木|金|土\",\"The {{projectName}} project team doesn't have any members\":\"\\\"{{projectName}}\\\" プロジェクトのチームにはメンバーがいません\",\"This project team doesn't have any members\":\"このプロジェクトのチームにはメンバーがいません\",\"You don't have permission to view basic profile data for other users\":\"他のユーザーの基本的なプロフィールデータを表示する権限がありません\",\"You don't have permission to view basic project data\":\"基本的なプロジェクトデータを表示する権限がありません\",\"am|pm\":\"am|pm\",\"project owner\":\"プロジェクトオーナー\",\"team\":\"チーム\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ja.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_kaa.po":
+/*!*****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_kaa.po ***!
+  \*****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"kaa\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_kaa.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ko.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ko.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"ko_KR\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"1월|2월|3월|4월|5월|6월|7월|8월|9월|10월|11월|12월\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"1월|2월|3월|4월|5월|6월|7월|8월|9월|10월|11월|12월\",\"Select a project\":\"프로젝트 선택\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"일요일|월요일|화요일|수요일|목요일|금요일|토요일\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"일|월|화|수|목|금|토\",\"The {{projectName}} project team doesn't have any members\":\"{{projectName}} 프로젝트 팀에 구성원이 없습니다\",\"This project team doesn't have any members\":\"프로젝트 팀에 구성원이 없습니다\",\"You don't have permission to view basic profile data for other users\":\"다른 사용자를 위해 기본 프로파일 데이터를 볼 권한이 없습니다\",\"You don't have permission to view basic project data\":\"기본 프로젝트 데이터를 볼 권한이 없습니다\",\"am|pm\":\"오전|오후\",\"project owner\":\"프로젝트 소유자\",\"team\":\"팀\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ko.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_nl.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_nl.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"nl_NL\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_nl.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pl.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pl.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"pl_PL\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Styczeń|Luty|Marzec|Kwiecień|Maj|Czerwiec|Lipiec|Sierpień|Wrzesień|Październik|Listopad|Grudzień\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Sty|Lut|Mar|Kwi|Maj|Cze|Lip|Sie|Wrz|Paź|Lis|Gru\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Niedziela|Poniedziałek|Wtorek|Środa|Czwartek|Piątek|Sobota\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"N|Po|Wt|Śr|Cz|Pt|So\",\"am|pm\":\"am|pm\",\"project owner\":\"właściciel projektu\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pl.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pt.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pt.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"pt_BR\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Janeiro|Fevereiro|Março|Abril|Maio|Junho|Julho|Agosto|Setembro|Outubro|Novembro|Dezembro\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Jan|Fev|Mar|Abr|Maio|Jun|Jul|Ago|Set|Out|Nov|Dez\",\"Select a project\":\"Selecionar um projeto\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Domingo|Segunda|Terça|Quarta|Quinta|Sexta|Sábado\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Dom|Seg|Ter|Qua|Qui|Sex|Sáb\",\"The {{projectName}} project team doesn't have any members\":\"O projeto {{projectName}} não possui nenhum membro\",\"This project team doesn't have any members\":\"Esta equipe de projeto não possui nenhum membro\",\"You don't have permission to view basic profile data for other users\":\"Você não tem permissão para visualizar os dados básicos do perfil de outros usuários\",\"You don't have permission to view basic project data\":\"Você não tem permissão para visualizar os dados básicos de projetos\",\"am|pm\":\"a.m.|p.m.\",\"project owner\":\"proprietário do projeto\",\"team\":\"equipe\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_pt.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ru.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ru.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"ru_RU\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"январь|февраль|март|апрель|май|июнь|июль|август|сентябрь|октябрь|ноябрь|декабрь\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"янв|фев|мар|апр|мая|июн|июл|авг|сен|окт|ноя|дек\",\"Select a project\":\"Выберите проект\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"воскресенье|понедельник|вторник|среда|четверг|пятница|суббота\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"вс|пн|вт|ср|чт|пт|сб\",\"The {{projectName}} project team doesn't have any members\":\"В команде проекта {{projectName}} нет участников\",\"This project team doesn't have any members\":\"В команде проекта нет участников\",\"You don't have permission to view basic profile data for other users\":\"У вас нет разрешений на просмотр основных данных профилей других пользователей\",\"You don't have permission to view basic project data\":\"У вас нет разрешений на просмотр основных данных о проекте\",\"am|pm\":\"ДП|ПП\",\"project owner\":\"владелец проекта\",\"team\":\"команда\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_ru.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_th.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_th.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"th_TH\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_th.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_tr.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_tr.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"tr_TR\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Oca|Şub|Mar|Nis|May|Haz|Tem|Ağu|Eyl|Eki|Kas|Ara\",\"Select a project\":\"Bir proje seç\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Pazar|Pazartesi|Salı|Çarşamba|Perşembe|Cuma|Cumartesi\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Paz|Pzt|Sal|Çrş|Prş|Cum|Cmt\",\"The {{projectName}} project team doesn't have any members\":\"{{projectName}} proje ekibinin herhangi bir üyesi yok\",\"This project team doesn't have any members\":\"Bu proje ekibinin herhangi bir üyesi yok\",\"You don't have permission to view basic profile data for other users\":\"Diğer kullanıcıların temel profil verilerini görüntüleme izniniz yok\",\"You don't have permission to view basic project data\":\"Temel proje verilerini görüntüleme izniniz yok\",\"am|pm\":\"öö|ös\",\"project owner\":\"proje sahibi\",\"team\":\"ekip\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_tr.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uk.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uk.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"uk_UA\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"Січень|Лютий|Березень|Квітень|Травень|Червень|Липень|Серпень|Вересень|Жовтень|Листопад|Грудень\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"Січ|Лют|Бер|Кві|Тра|Чер|Лип|Сер|Вер|Жов|Лис|Гру\",\"Select a project\":\"Виберіть проєкт\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"Неділя|Понеділок|Вівторок|Середа|Четвер|Пʼятниця|Субота\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"Нд|Пн|Вт|Ср|Чт|Пт|Сб\",\"am|pm\":\"дп|пп\",\"project owner\":\"власник проєкту\",\"team\":\"команда\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uk.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uz.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uz.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"uz_UZ\":{}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_uz.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zh.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zh.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"zh_CN\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"1 月|2 月|3 月|4 月|5 月|6 月|7 月|8 月|9 月|10 月|11 月|12 月\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"1 月|2 月|3 月|4 月|5 月|6 月|7 月|8 月|9 月|10 月|11 月|12 月\",\"Select a project\":\"选择项目\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"星期日|星期一|星期二|星期三|星期四|星期五|星期六\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"周日|周一|周二|周三|周四|周五|周六\",\"The {{projectName}} project team doesn't have any members\":\"{{projectName}} 项目团队没有任何成员\",\"This project team doesn't have any members\":\"此项目团队没有任何成员\",\"You don't have permission to view basic profile data for other users\":\"您无权查看其他用户的基本个人资料数据\",\"You don't have permission to view basic project data\":\"您无权查看基本项目数据\",\"am|pm\":\"上午|下午\",\"project owner\":\"项目所有者\",\"team\":\"团队\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zh.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zt.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zt.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"zh_TW\":{\"Select a project\":\"選擇一個專案\",\"team\":\"團隊\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zt.po");
+
+/***/ }),
+
+/***/ "./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zu.po":
+/*!****************************************************************************************!*\
+  !*** ./widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zu.po ***!
+  \****************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+eval("module.exports = {\"zu_ZA\":{\"January|February|March|April|May|June|July|August|September|October|November|December\":\"crwdns270131132:0crwdne270131132:0\",\"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec\":\"crwdns270131134:0crwdne270131134:0\",\"Select a project\":\"crwdns270131136:0crwdne270131136:0\",\"Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday\":\"crwdns270131138:0crwdne270131138:0\",\"Sun|Mon|Tue|Wed|Thu|Fri|Sat\":\"crwdns270131140:0crwdne270131140:0\",\"The {{projectName}} project team doesn't have any members\":\"crwdns270131142:0{{projectName}}crwdne270131142:0\",\"This project team doesn't have any members\":\"crwdns270131144:0crwdne270131144:0\",\"You don't have permission to view basic profile data for other users\":\"crwdns270131146:0crwdne270131146:0\",\"You don't have permission to view basic project data\":\"crwdns270131148:0crwdne270131148:0\",\"am|pm\":\"crwdns270131150:0crwdne270131150:0\",\"project owner\":\"crwdns270131152:0crwdne270131152:0\",\"team\":\"crwdns270131154:0crwdne270131154:0\"}}\n\n//# sourceURL=mnt/agent/work/193ff62e344f92d3/packages/project-team-dashboard-widgets/widgets/hub-project-team-widget/app/translations/hub-project-team-widget_zu.po");
+
+/***/ })
+
+/******/ });

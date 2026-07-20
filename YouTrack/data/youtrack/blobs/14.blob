@@ -1,0 +1,310 @@
+(Q/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const toPeriod = require('@jetbrains/youtrack-scripting-api/date-time').toPeriod;
+
+const setVisible = (isPrivate, project) => {
+  return isPrivate ? [project + ' Team'] : null;
+};
+
+exports.setVisible = setVisible;
+
+exports.cleanKeyName = key => {
+  return key.replace(/[^\w\s]/g, '');
+};
+
+exports.cleanEmptyKeys = eventsMap => {
+  return Object.entries(eventsMap).reduce((acc, [key, value]) => {
+    if (value.addedValues?.length || value.removedValues?.length) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+};
+
+exports.convertType = type => {
+  console.log('converting from Redmine type: ' + type);
+  switch (type) {
+    case 'int':
+      return 'integer';
+    case 'status':
+      return 'state';
+    case 'float':
+      return 'float';
+    case 'list':
+    case 'enumeration':
+      return 'enum';
+    case 'text':
+      return 'text';
+    case 'date':
+      return 'date';
+    case 'version':
+      return 'version';
+    case 'user':
+      return 'user';
+    default:
+      return 'string';
+  }
+};
+
+exports.convertRelations = (type, outward) => {
+  console.trace('Converting relation: ' + type);
+  switch (type) {
+    case 'relates':
+      return 'relates to';
+    case 'copied_to':
+      return outward ? 'copied to' : 'copied from';
+    case 'copied_from':
+      return outward ? 'copied from' : 'copied to';
+    case 'blocked':
+      return outward ? 'blocked by' : 'blocks';
+    case 'blocks':
+      return outward ? 'blocks' : 'blocked by';
+    case 'duplicated':
+      return outward ? 'is duplicated by' : 'duplicates';
+    case 'duplicates':
+      return outward ? 'duplicates' : 'is duplicated by';
+    case 'precedes':
+      return outward ? 'precedes' : 'follows';
+    case 'follows':
+      return outward ? 'follows' : 'precedes';
+    default:
+      return type;
+
+  }
+};
+
+const floatConverter = value => {
+  //JT-62648
+  if (value > Number.MAX_SAFE_INTEGER) {value = 1.0;}
+  return toPeriod(Math.floor(value * 3.6e+6)).toString();
+};
+
+exports.floatConverter = floatConverter;
+
+const notNull = value => value !== null;
+
+//check if an issue, comment and etc. author refer to Anonymous(guest)
+const guestChecker = (user) => {
+  return typeof user === 'undefined' ? {
+    login: 'anonymous',
+    deleted: true,
+    name: 'anonymous',
+    banned: false,
+    type: 'user'
+  } : user;
+};
+
+exports.guestChecker = guestChecker;
+
+const isGroupChecker = (groups, id) => {
+  return Object.keys(groups).some(group => groups[group].id === id);
+};
+
+exports.isGroupChecker = isGroupChecker;
+
+//this map and method are needed for history conversion, as Redmine returns ids/names of some of the fields, not values
+const fieldsMap = {};
+
+exports.toFieldMap = (arrayOfFields, arrayOfNames) => {
+  arrayOfFields.forEach((el, i) => {
+    //saving users
+    if (i === 2) {fieldsMap['users'] = el;}
+    //saving groups
+    if (i === 8) {fieldsMap['groups'] = el;}
+    if (!fieldsMap.hasOwnProperty(arrayOfNames[i])) {fieldsMap[arrayOfNames[i]] = {};}
+
+    //checking if a field has values in it and creating map from them
+    if (el.length) {el.forEach(e => {
+      if (!fieldsMap[arrayOfNames[i]].hasOwnProperty(e.id)) {fieldsMap[arrayOfNames[i]][e.id] = {};}
+      fieldsMap[arrayOfNames[i]][e.id] = e;
+    });}
+  });
+};
+
+//used to process groups and users(assignees) events
+const theDeterminator = (users, groups, prev, next) => {
+  const prevIsGroup = prev in groups;
+  const nextIsUser = next in users;
+
+  if (prevIsGroup && !nextIsUser) {
+    return {
+      name: 'Assignee group',
+      type: 'group',
+      old: notNull(prev) ? groups[prev].name : '',
+      new: notNull(next) ? groups[next].name : '',
+      toGroup: null
+    };
+  } else if (!prevIsGroup && !nextIsUser) {
+    return {
+      name: 'Assignee group',
+      type: 'group',
+      old: '',
+      new: notNull(next) ? groups[next].name : '',
+      toGroup: true,
+      aux: !notNull(prev) ? '' : users[prev].login
+    };
+  } else if (prevIsGroup && nextIsUser) {
+    return {
+      name: 'Assignee group',
+      type: 'group',
+      old: notNull(prev) ? groups[prev].name : '',
+      new: '',
+      toGroup: false,
+      aux:  !notNull(next) ? '' : users[next].login
+    };
+  }
+
+};
+
+//name property is used for fields that rely on their names
+exports.convertHistoryField = (element, issueData, assignedToGroup) => {
+  console.log('Converting history item: ' + element.name);
+  console.trace('Current Element: ', JSON.stringify(element));
+  console.trace('Fields Map: ', JSON.stringify(fieldsMap));
+  switch (element.name) {
+    case 'tracker_id':
+      return {
+        name: 'Type',
+        type: 'enum',
+        old: fieldsMap[element.name][element.old_value] ? fieldsMap[element.name][element.old_value].name : `Removed Type ${element.old_value}`,
+        new: fieldsMap[element.name][element.new_value] ? fieldsMap[element.name][element.new_value].name : `Removed Type ${element.new_value}`
+      };
+    case 'category_id':
+      return {
+        name: 'Subsystem',
+        type: 'ownedField',
+        old: fieldsMap[element.name][element.old_value] ? fieldsMap[element.name][element.old_value].name : `Removed Subsystem ${element.old_value}`,
+        new: fieldsMap[element.name][element.new_value] ? fieldsMap[element.name][element.new_value].name : `Removed Subsystem ${element.new_value}`
+      };
+    case 'status_id':
+      return {
+        name: 'State',
+        type: 'state',
+        old: fieldsMap[element.name][element.old_value] ? fieldsMap[element.name][element.old_value].name : `Removed State ${element.old_value}`,
+        new: fieldsMap[element.name][element.new_value] ? fieldsMap[element.name][element.new_value].name : `Removed State ${element.new_value}`
+      };
+    case 'estimated_hours':
+      return {
+        name: 'Estimation',
+        type: 'period',
+        old: element.old_value ? floatConverter(element.old_value) : '',
+        new: element.new_value ? floatConverter(element.new_value) : ''
+      };
+    case 'priority_id':
+      return {
+        name: 'Priority',
+        type: 'enum',
+        old: fieldsMap[element.name][element.old_value] ? fieldsMap[element.name][element.old_value].name : `Removed Priority ${element.old_value}`,
+        new: fieldsMap[element.name][element.new_value] ? fieldsMap[element.name][element.new_value].name : `Removed Priority ${element.new_value}`
+      };
+    case 'subject':
+      return {
+        name: 'summary',
+        type: 'string',
+        old: element.old_value,
+        new: element.new_value
+      };
+    case 'description':
+      return {
+        name: 'description',
+        type: 'text',
+        old: element.old_value ? element.old_value + '' : '',
+        new: element.new_value ? element.new_value + '' : ''
+      };
+    case 'due_date':
+      return {
+        name: 'Due Date',
+        type: 'date',
+        old: element.old_value,
+        new: element.new_value
+      };
+    case 'start_date':
+      return {
+        name: 'Start Date',
+        type: 'date',
+        old: element.old_value,
+        new: element.new_value
+      };
+    case 'done_ratio':
+      return {
+        name: '% Done',
+        type: 'string',
+        old: element.old_value,
+        new: element.new_value
+      };
+    case 'is_private':
+      return {
+        name: 'visibleToGroups',
+        old: element.old_value === '0' ? [] : setVisible(true, issueData.project.name),
+        new: element.new_value === '0' ? [] : setVisible(true, issueData.project.name)
+      };
+    case 'assigned_to_id':
+      if (assignedToGroup) {
+        return theDeterminator(fieldsMap['users'], fieldsMap['groups'], element.old_value, element.new_value);
+      }
+      return {
+        name: 'assignee',
+        type: 'user',
+        old: notNull(element.old_value) ? guestChecker(fieldsMap['users'][element.old_value]).login : '',
+        new: notNull(element.new_value) ? guestChecker(fieldsMap['users'][element.new_value]).login : ''
+      };
+    case 'fixed_version_id':
+      return {
+        name: 'Fix versions',
+        type: 'version',
+        old: notNull(element.old_value) ? fieldsMap[element.name][element.old_value] ? fieldsMap[element.name][element.old_value].name : `Lost Version ${element.old_value}` : '',
+        new: notNull(element.new_value) ? fieldsMap[element.name][element.new_value] ? fieldsMap[element.name][element.new_value].name : `Lost Version ${element.new_value}` : ''
+      };
+  }
+
+};
+//used for CF indexes
+const findIdx = (arr, search) => {
+  let idx = 0;
+
+  arr.some((el, i) => {
+    if (el.id === search) {
+      idx = i;
+      return true;
+    }
+  });
+  return idx;
+
+};
+
+exports.convertHistoryCfField = (element) => {
+  const thisName = fieldsMap[element.property][element.name].name;
+  const thisType = fieldsMap[element.property][element.name].type;
+  const thisValues = fieldsMap[element.property][element.name].values;
+  //used for bool type only
+  const thisIsBoolean = fieldsMap[element.property][element.name].initialType === 'bool';
+  console.log('Converting history with CF item: ' + thisName);
+  console.trace('Current Element: ', JSON.stringify(element));
+  console.trace('Fields Map: ', JSON.stringify(fieldsMap));
+  console.trace('Values: ', thisValues);
+
+  return {
+    name: thisName,
+    type: thisType,
+    old: thisType !== 'string' && notNull(element.old_value) && Array.isArray(thisValues) && thisValues.length || thisIsBoolean ? thisValues[findIdx(thisValues, element.old_value)].name : notNull(element.old_value) ? element.old_value : '',
+    new: thisType !== 'string' && notNull(element.new_value) && Array.isArray(thisValues) && thisValues.length || thisIsBoolean ? thisValues[findIdx(thisValues, element.new_value)].name : notNull(element.new_value) ? element.new_value : ''
+  };
+
+};
+
+exports.findIdx = findIdx;
+exports.notNull = notNull;

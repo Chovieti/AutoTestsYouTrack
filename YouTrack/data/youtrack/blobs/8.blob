@@ -1,0 +1,473 @@
+CB/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const toMarkdown = require('@jetbrains/youtrack-confluence-import-aux/to-markdown').toMarkdown;
+
+const cache = require('@jetbrains/youtrack-scripting-api/cache');
+const Context = require('./confluence-context');
+const Connection = require('./confluence-connection');
+const extractorUsers = require('./extractor-users');
+const pageCache = require('./page-cache');
+
+const EXPAND = 'ancestors,body.storage,history,history.lastUpdated,' +
+    'children.comment.body.storage,' +
+    'children.comment.history.lastUpdated,' +
+    'children.attachment,' +
+    'children.attachment.history,' +
+    'restrictions.read.restrictions.group,' +
+    'restrictions.read.restrictions.user,' +
+    'restrictions.update.restrictions.group,' +
+    'restrictions.update.restrictions.user';
+
+const emptyRestrictions = {readUsers: [], readGroups: []};
+
+const ATTACHMENT_EXPAND = 'history,body.storage,history.lastUpdated';
+
+function createParentLink(page) {
+  const parent = page.ancestors && page.ancestors.length && page.ancestors[page.ancestors.length - 1];
+  const parentId = (parent && parent.id) ? parent.id.toString() : null;
+  return parentId ? parentId : null;
+}
+
+function getCommentsOld(page) {
+  let children = null;
+  if (!page.children['comment'].results) {
+    return [];
+  }
+  let items = [];
+  let i;
+  let start = 0;
+  for (i = 0; i < 100; i++) {
+    if (children && children.size === 0) {
+      return items;
+    }
+    children = Connection.loadJson('/rest/api/content/' + page.id + '/child/comment', {
+      'start': '' + start,
+      'expand': 'history,body.storage,history.lastUpdated,children.comment,ancestors,ancestors.body.storage'
+    });
+    start += children.results.length;
+    children.results.forEach(function (comment) {
+      items.push(comment);
+      items = items.concat(getComments(comment));
+    });
+  }
+  return items;
+}
+
+function getComments(page) {
+  const serverVersion = Context.getValue('serverVersion');
+  if (serverVersion.indexOf('5.') === 0) {
+    console.log('Server version is ' + serverVersion + ', using getCommentsOld');
+    return getCommentsOld(page);
+  }
+  return getSubItems(page, 'comment', 'history,body.storage,history.lastUpdated,ancestors,ancestors.body.storage', {'depth': 'all'});
+}
+
+function getSubItems(page, subItemName, expand, params) {
+  let children = null;
+  let pageChildren = page.children[subItemName];
+  if (!pageChildren.results || !pageChildren.results.length) {
+    return [];
+  }
+  if (!params) { //  this means we don't need to request extra data and can just use what was returned for children
+    children = pageChildren;
+  }
+  let items = (children || {}).results || [];
+  let i;
+  for (i = 0; i < 100; i++) {
+    if (children && children.size === 0) {
+      return items;
+    }
+    let requestParams = {...params, 'start': '' + items.length, 'expand': expand};
+    children = Connection.loadJson('/rest/api/content/' + page.id + '/child/' + subItemName, requestParams);
+    items = items.concat(children.results);
+  }
+}
+
+function getPageRestrictions(page, pageId) {
+  const serverVersion = Context.getValue('serverVersion');
+  if (serverVersion.indexOf('5.') === 0) {
+    return brokenApiFallbackGetRestrictions(pageId);
+  }
+  let restrictions = page.restrictions;
+  if (restrictions) {
+        function getRestrictions(restrictions, access, visibleTo) {
+          return (((restrictions[access] || {}).restrictions || {})[visibleTo] || {}).results || [];
+        }
+
+        let readUsers = getRestrictions(restrictions, 'read', 'user');
+        let readGroups = getRestrictions(restrictions, 'read', 'group');
+        if (!readUsers.length && !readGroups.length) {
+          return emptyRestrictions;
+        }
+        let updateUsers = getRestrictions(restrictions, 'update', 'user');
+        let updateGroups = getRestrictions(restrictions, 'update', 'group');
+        return {readUsers: [...readUsers, ...updateUsers], readGroups: [...readGroups, ...updateGroups]};
+  }
+  return emptyRestrictions;
+}
+
+function convertPageToArticle(page, getters) {
+  try {
+    console.info('webUrlToId [' + (page._links || {}).webui + ' : ' + page.id + ']');
+    let pageAttachments = getSubItems(page, 'attachment', ATTACHMENT_EXPAND);
+    getters.attachmentNames = pageAttachments.map(it => it.title);
+    const pageId = page.id.toString();
+    const pageContext = '{Page id:' + pageId + '}';
+    const content = toMarkdown(page.body.storage.value, getters, pageContext);
+    const author = extractorUsers.convertUser(page.history.createdBy);
+    const created = page.history.createdDate;
+
+    const additionalComments = content.additionalComments.map((it, idx) => {
+      const commentId = 'int-' + pageId + '-' + idx;
+      console.warn('addInternalNote: ' + page.title);
+      return ({
+        id: commentId,
+        text: 'INTERNAL NOTE: ' + it,
+        author: author,
+        updated: created,
+        created: created,
+        visibleToUsers: [author],
+        references: []
+      });
+    });
+
+    let {readUsers, readGroups} = getPageRestrictions(page, pageId);
+    return {
+      id: pageId,
+      key: pageId,
+      fields: {
+        summary: page.title,
+        content: content.markdown,
+        created: created,
+        updated: (page.history.lastUpdated || {}).when,
+        updatedBy: extractorUsers.convertUser(page.history.lastUpdated.by),
+        author: author,
+        parent: createParentLink(page),
+        references: content.pageReferences,
+        attachments: [...pageAttachments, ...content.externalAttachments]
+                    .map(attachment => ({
+                      id: attachment.id,
+                      filename: attachment.title,
+                      created: attachment.history.createdDate,
+                      author: extractorUsers.convertUser(attachment.history.createdBy),
+                      mimeType: attachment.metadata.mediaType
+                    })),
+        comments: [...additionalComments, ...getComments(page).filter(comment => comment.body && comment.body.storage).map(comment => {
+          const commentId = comment.id;
+          const commentContext = '{Page id:' + pageId + '}.comments[' + commentId + ']';
+          const replyQuote = getReplyQuote(comment, getters, commentContext);
+          let commentContent = toMarkdown(comment.body.storage.value, getters, commentContext);
+          return ({
+            id: commentId,
+            text: (replyQuote || '') + commentContent.markdown,
+            author: extractorUsers.convertUser(comment.history.createdBy),
+            updated: (comment.history.lastUpdated || {}).when,
+            created: comment.history.createdDate,
+            references: commentContent.pageReferences
+          });
+        })],
+        visibleToUsers: readUsers.map(user => extractorUsers.convertUser(user)),
+        visibleToGroups: readGroups.map(group => ({name: group.name})),
+        tags: getPageLabels(pageId)
+      }
+    };
+  } catch (e) {
+    console.log('Failed to convert pageId="' + page.id + '"');
+    console.log('>>>>>>>>>>Begin of page content>>>>>>>>>>\n\n' + JSON.stringify(page) + '\n\n<<<<<<<<<<<End of page content<<<<<<<<<<<');
+    console.log('>>>> Original error stack:', e.stack);
+    throw e;
+  }
+}
+
+function getPageLabels(pageId) {
+  try {
+    let labels = [];
+    let start = 0;
+    let size = -1;
+    while (size !== 0) {
+      const response = Connection.loadJson(
+        'rest/api/content/' + pageId + '/label',
+        { start: '' + start, limit: '25' }
+      );
+      const results = response.results || [];
+      size = results.length;
+      labels = labels.concat(results);
+      start += size;
+    }
+    return labels.map(label => ({
+      id: label.id || label.name,
+      name: label.name,
+      type: 'tag'
+    }));
+  } catch (e) {
+    console.warn('Failed to load labels for page ' + pageId + ': ' + e);
+    return [];
+  }
+}
+
+function getReplyQuote(comment, getters, context) {
+  if (!comment.ancestors || !comment.ancestors.length) {
+    return '';
+  }
+  const ancestor = comment.ancestors[0];
+  if (!ancestor || ancestor.type !== 'comment') {
+    return '';
+  }
+  let text = ((ancestor.body || {}).storage || {}).value;
+  if (!text) {
+    return '';
+  }
+  text = toMarkdown(text, getters, context).markdown;
+  if (text.length > 503) {
+    text = text.substring(0, 500) + '...';
+  }
+  const selectedLines = text.split('\n');
+  if (!selectedLines.length) {
+    return '';
+  }
+  text = selectedLines.map(line => {
+    return `> ${line}`;
+  }).join('\n');
+
+  return text + '\n';
+}
+
+const getPageByNameCache = function () {
+  return Context.getCtxAccess().getOrCreateObject('pageByNameCache', () => {
+    return cache.create(100, 'pageByName');
+  });
+};
+
+function getAttachment(pageId, fileName) {
+  try {
+    console.warn('Request external attachemnt ' + pageId + ' ' + fileName);
+    const results = Connection.loadJson(
+            'rest/api/content/' + pageId + '/child/attachment',
+            {filename: fileName, expand: ATTACHMENT_EXPAND}
+    ).results;
+    if (results.length) {
+      return results[0];
+    }
+  } catch (e) {
+    console.warn('Failed to retrieve attachment for page ' + pageId + ' file name ' + fileName);
+  }
+}
+
+function makePageInfoGetter(spaceKey) {
+  return function (pageTitle, spaceId) {
+    const space = spaceId || spaceKey;
+    const pageInfo = '{spaceKey=\'' + space + '\', title=\'' + pageTitle + '\'}';
+    return getPageByNameCache().get(pageTitle + '$$space$$' + space, () => {
+      try {
+        const isPageTitleToPageCacheEnabled = Context.getValue('isPageTitleToPageCacheEnabled') === 'true';
+        if (isPageTitleToPageCacheEnabled) {
+          const foundByTitle = pageCache.findPageByTitle(pageTitle);
+          if (foundByTitle && foundByTitle.id) {
+            return foundByTitle;
+          }
+        }
+        const found = Connection.loadJson('/rest/api/content', {title: pageTitle, spaceKey: space}).results;
+        if (found.length) {
+          const link = (found[0]._links || {}).webui;
+          const result = {
+            id: found[0].id
+          };
+          if (link) {
+            result.link = Context.getValue('url').replace(/\/$/, '') + link;
+          }
+          return result;
+        } else {
+          console.warn('Failed to find page ' + pageInfo);
+          return null;
+        }
+      } catch (e) {
+        console.warn('Failed to retrieve details for page ' + pageInfo + ', error message: ' + e.message);
+        return null;
+      }
+    });
+  };
+}
+
+function createGetters(useDeprecatedAPI, spaceKey) {
+  const getters = extractorUsers.makeGetters(useDeprecatedAPI);
+  getters.getPageInfo = makePageInfoGetter(spaceKey);
+  getters.getAttachment = getAttachment;
+  getters.url = Context.getValue('url');
+  return getters;
+}
+
+function getArticlesPiece(spaceKey, start, limit) {
+  console.trace('getArticlesPiece called start=', start, 'limit=', limit);
+
+  // https://developer.atlassian.com/cloud/confluence/rest/#api-api-content-get
+  const pagesRes = Connection.loadJson('rest/api/content', {
+    spaceKey: spaceKey,
+    start: start.toString(),
+    limit: limit.toString(),
+    expand: EXPAND
+  });
+
+  console.trace('getArticlesPiece loaded ' + pagesRes.size + ' pages for space "' + spaceKey + '"');
+
+  const getters = createGetters(false, spaceKey);
+  return pagesRes.results.map(page => convertPageToArticle(page, getters));
+}
+
+function brokenApiFallbackGetRestrictions(pageId) {
+  let resp = Connection.postJson('/rpc/json-rpc/confluenceservice-v2',
+        {os_authType: 'basic'},
+        JSON.stringify({jsonrpc: '2.0', method: 'getContentPermissionSets', params: ['' + pageId], id: 1})
+  );
+  console.log('brokenApiGetRestrictions ' + JSON.stringify(resp));
+  const restrictions = resp.result || [];
+  const viewRestrictions = restrictions.filter(it => it.type === 'View')[0];
+  if (!viewRestrictions || !viewRestrictions.contentPermissions || !viewRestrictions.contentPermissions.length) {
+    return emptyRestrictions;
+  }
+  const editRestrictions = restrictions.filter(it => it.type === 'Edit')[0];
+  let allRestrictions = viewRestrictions.contentPermissions;
+  if (editRestrictions && editRestrictions.contentPermissions && editRestrictions.contentPermissions.length) {
+    allRestrictions = [...viewRestrictions.contentPermissions, ...editRestrictions.contentPermissions];
+  }
+  const readUsers = [];
+  const readGroups = [];
+  allRestrictions.forEach(it => {
+    if (it.groupName) {
+      readGroups.push({name: it.groupName});
+    } else if (it.userName) {
+      readUsers.push({username: it.userName});
+    }
+  });
+  return {readUsers, readGroups};
+}
+
+// On confluence 5.x version REST API pagination is broken (ADM-42470)
+function brokenApiFallbackGetArticles(project, start, limit) {
+  // See https://developer.atlassian.com/server/confluence/remote-confluence-methods/#pages
+  const allPages = Connection.postJson('/rpc/json-rpc/confluenceservice-v2',
+        {os_authType: 'basic'},
+        JSON.stringify({jsonrpc: '2.0', method: 'getPages', params: [project.key], id: 1})
+  );
+
+  const allIds = allPages.result.map(r => r.id);
+  const pageIds = allIds.slice(start, start + limit);
+  console.trace('brokenApiFallbackGetArticles is about to load ' + pageIds.join(',') + ' pages for space "' + project.key + '"');
+
+  const pages = pageIds.map(id => {
+    return Connection.loadJson('/rest/api/content/' + id, {expand: EXPAND});
+  });
+
+  console.trace('brokenApiFallbackGetArticles loaded ' + pages.length + ' pages for space "' + project.key + '"');
+
+  const getters = createGetters(true, project.key);
+  return pages.map(page => convertPageToArticle(page, getters));
+}
+
+const MAX_PAGES = 10;
+
+function actualApiGetArticles(project, skip, top) {
+  let pageNum = 0;
+  let from = 0;
+  let done = false;
+  let result = [];
+
+  while (!done && ++pageNum <= MAX_PAGES) {
+    let articles = getArticlesPiece(project.key, skip + from, top - from);
+    result = result.concat(articles);
+
+    from += articles.length;
+    done = result.length >= top;
+  }
+
+  return result;
+}
+
+function getArticles(project, after, top) {
+  const skipContainerKey = 'skip';
+  const skipKey = 'project.' + project.id + '.articles';
+  let skipContainer = Context.getCtxAccess().getObject(skipContainerKey) || {};
+  const localSkip = skipContainer[skipKey];
+
+  let skip;
+  if (localSkip) {
+    // local skip is created by processing of the previous page
+    skip = localSkip;
+    // persist current skip to relaunch in case of failure
+    Context.getCtxAccess().setObject(skipContainerKey, JSON.stringify(skipContainer));
+  } else {
+    // no local skip means either initial or resumed request of the first page
+    // occurrence of the persisted parameter means a resume of import
+    const skipContainerString = Context.getCtxAccess().getParam(skipContainerKey);
+    skipContainer = JSON.parse(skipContainerString || '{}');
+    skip = skipContainer[skipKey] = skipContainer[skipKey] || 0;
+  }
+
+  let articles;
+  const serverVersion = Context.getValue('serverVersion');
+  if (serverVersion.indexOf('5.') === 0) {
+    console.log('Server version is ' + serverVersion + ', using brokenApiFallbackGetArticles');
+    articles = brokenApiFallbackGetArticles(project, skip, top);
+  } else {
+    articles = actualApiGetArticles(project, skip, top);
+  }
+
+  const nextSkip = skip + articles.length;
+  console.log('>>>>>>> Project ' + project.key
+        + ' loaded articles: ' + articles.length
+        + ' articlesSkip=' + nextSkip);
+  skipContainer[skipKey] = nextSkip;
+  Context.getCtxAccess().setObject(skipContainerKey, skipContainer);
+
+  return articles;
+}
+
+function getArticleUpdates(projectInfo, after, updatedAfter, top) {
+  let skip = 0;
+  let articles = [];
+  let lastIterationLength = top;
+  const serverVersion = Context.getValue('serverVersion');
+
+  while (articles.length < top && lastIterationLength === top) {
+    let articleOnIteration = [];
+
+    if (serverVersion.indexOf('5.') === 0) {
+      console.log('Server version is ' + serverVersion + ', using brokenApiFallbackGetArticles');
+      articleOnIteration = brokenApiFallbackGetArticles(projectInfo, skip, top);
+    } else {
+      articleOnIteration = actualApiGetArticles(projectInfo, skip, top);
+    }
+
+    lastIterationLength = articleOnIteration.length;
+
+    let filteredArticles = articleOnIteration.filter(article => {
+      return new Date(article.fields.updated) > new Date(updatedAfter);
+    });
+
+    filteredArticles.forEach(article => articles.push(article));
+    skip = skip + lastIterationLength;
+  }
+
+  console.log('>>>>>>> Project ' + projectInfo.id
+        + ' loaded articles: ' + articles.length);
+
+  return articles;
+}
+
+module.exports = {
+  getArticles,
+  getArticleUpdates
+};

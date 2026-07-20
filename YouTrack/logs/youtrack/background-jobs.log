@@ -1,0 +1,615 @@
+03/07/26 21:35:34,444 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 03/07/26 21:35:42,873 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:5cce9a3c561c(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-03T21:35:42.868208691Z, pending=1ms, running=2ms, lifetime=3ms)) 
+]
+ 03/07/26 21:36:03,254 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 03/07/26 21:36:03,254 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 03/07/26 21:36:03,265 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 03/07/26 21:36:03,265 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 03/07/26 21:36:03,267 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 03/07/26 21:36:03,267 INFO  [3adba57f-4c72-2852-d5f1-13bcacdf62bf@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 03/07/26 21:36:07,914 INFO  [@ Daemon Proxy 2] [MaintenanceJobThreadPool      ] [@] Disabled autoscaling
+ 03/07/26 21:37:43,612 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 03/07/26 21:37:51,486 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:070dfb89fc18(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-03T21:37:51.476442263Z, pending=3ms, running=3ms, lifetime=9ms)) 
+]
+ 03/07/26 21:38:07,683 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 03/07/26 21:38:07,683 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 03/07/26 21:38:07,694 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 03/07/26 21:38:07,694 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 03/07/26 21:38:07,695 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 03/07/26 21:38:07,695 INFO  [addcbafd-5afc-1449-98b5-01e9834fa7c6@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 03:46:54,467 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 06/07/26 03:47:04,291 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:4ee5422f46d2(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-06T03:47:04.281638005Z, pending=3ms, running=2ms, lifetime=8ms)) 
+]
+ 06/07/26 03:47:23,169 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 06/07/26 03:47:23,170 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 03:47:23,181 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 06/07/26 03:47:23,181 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 03:47:23,183 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 06/07/26 03:47:23,183 INFO  [bdcd3cf9-5504-8997-4c04-3f80630b42d3@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 07:04:53,268 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 06/07/26 07:05:01,583 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:0bd413e7a47e(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-06T07:05:01.570747184Z, pending=4ms, running=3ms, lifetime=11ms)) 
+]
+ 06/07/26 07:05:17,526 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 06/07/26 07:05:17,527 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 07:05:17,537 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 06/07/26 07:05:17,537 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 06/07/26 07:05:17,538 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 06/07/26 07:05:17,538 INFO  [cd413a3d-ab4b-317a-493c-3fe29ef183a7@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 09:08:33,173 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 07/07/26 09:08:41,639 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:d2a1a4dd89f4(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-07T09:08:41.628740350Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 07/07/26 09:08:57,707 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 07/07/26 09:08:57,708 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 09:08:57,719 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 07/07/26 09:08:57,719 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 09:08:57,720 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 07/07/26 09:08:57,720 INFO  [1f0bd8fa-d9f0-04bb-8e26-b8c414086e2c@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 11:43:45,018 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 07/07/26 11:43:53,946 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:791b9a620ec9(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-07T11:43:53.937163929Z, pending=3ms, running=2ms, lifetime=8ms)) 
+]
+ 07/07/26 11:44:12,057 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 07/07/26 11:44:12,058 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 11:44:12,070 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 07/07/26 11:44:12,070 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 11:44:12,071 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 07/07/26 11:44:12,071 INFO  [17140764-c463-3dfc-42f8-f9e898895e1e@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 13:43:15,724 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 07/07/26 13:43:24,244 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:2893e4b7a015(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-07T13:43:24.235325850Z, pending=2ms, running=2ms, lifetime=7ms)) 
+]
+ 07/07/26 13:43:41,041 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 07/07/26 13:43:41,042 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 13:43:41,059 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 07/07/26 13:43:41,059 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 13:43:41,061 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 07/07/26 13:43:41,061 INFO  [31493d75-1ff8-8b72-dd99-26d4d5c5cd9d@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 13:52:50,223 WARN  [5c8ae188-508a-6b39-340f-21bdaee4f1ab@p1029503535-180] [PermissionCacheCalculator     ] [admin@192.168.65.1] Unable to replace previous job j.y.s.invalidation.PermissionCacheInvalidationJob:5b778ef09a5c(status=COMPLETED) with j.y.s.invalidation.PermissionCacheInvalidationJob:8f68336a4c35 in group allFields. 
+ 07/07/26 18:35:06,520 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 07/07/26 18:35:14,302 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:3a4af9c6f555(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-07T18:35:14.292708773Z, pending=3ms, running=2ms, lifetime=8ms)) 
+]
+ 07/07/26 18:35:30,861 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 07/07/26 18:35:30,861 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 18:35:30,873 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 07/07/26 18:35:30,873 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 07/07/26 18:35:30,874 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 07/07/26 18:35:30,874 INFO  [5c2c5096-9f1a-7a7a-9b7e-2bcee643899f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 00:34:46,708 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 08/07/26 00:34:55,017 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:dad6c41082e3(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-08T00:34:55.005816360Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 08/07/26 00:35:14,292 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 08/07/26 00:35:14,293 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 00:35:14,308 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 08/07/26 00:35:14,308 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 00:35:14,309 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 08/07/26 00:35:14,309 INFO  [abac04b3-a3cc-23e6-61a3-544f0909bf60@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 02:51:36,792 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 08/07/26 02:51:46,368 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:c84faace5d02(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-08T02:51:46.357100554Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 08/07/26 02:52:04,640 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 08/07/26 02:52:04,641 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 02:52:04,651 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 08/07/26 02:52:04,651 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 02:52:04,652 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 08/07/26 02:52:04,653 INFO  [6a044b4d-7366-f1b3-b13b-e3570e166255@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 08:23:53,274 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 08/07/26 08:24:01,991 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:5a8e47e85e47(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-08T08:24:01.981283989Z, pending=3ms, running=3ms, lifetime=9ms)) 
+]
+ 08/07/26 08:24:18,241 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 08/07/26 08:24:18,241 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 08:24:18,252 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 08/07/26 08:24:18,252 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 08:24:18,254 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 08/07/26 08:24:18,254 INFO  [99c06ba1-893f-04cf-c184-92827dd55d59@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 12:53:02,325 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 08/07/26 12:53:10,933 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:d60c6dcb8d49(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-08T12:53:10.920961316Z, pending=4ms, running=3ms, lifetime=11ms)) 
+]
+ 08/07/26 12:53:28,470 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 08/07/26 12:53:28,471 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 12:53:28,483 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 08/07/26 12:53:28,483 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 08/07/26 12:53:28,484 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 08/07/26 12:53:28,484 INFO  [cf1c67bc-e9a0-ca52-321a-c26516f22a6f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 13:15:05,355 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 09/07/26 13:15:15,245 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:1a599ee21116(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-09T13:15:15.231328416Z, pending=4ms, running=3ms, lifetime=12ms)) 
+]
+ 09/07/26 13:15:33,570 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 09/07/26 13:15:33,571 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 13:15:33,582 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 09/07/26 13:15:33,582 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 13:15:33,583 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 09/07/26 13:15:33,583 INFO  [7b6e4d55-183c-e6f1-cf27-9909c365c0e2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 19:34:38,994 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 09/07/26 19:34:49,286 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:511deb1b3309(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-09T19:34:49.276306970Z, pending=2ms, running=3ms, lifetime=8ms)) 
+]
+ 09/07/26 19:35:07,727 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 09/07/26 19:35:07,728 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 19:35:07,742 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 09/07/26 19:35:07,742 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 19:35:07,743 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 09/07/26 19:35:07,743 INFO  [dd63f992-b055-7b7d-6fe4-945ad7844e40@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 22:36:49,710 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 09/07/26 22:36:57,946 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:8ab0a3d87025(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-09T22:36:57.936950872Z, pending=2ms, running=2ms, lifetime=8ms)) 
+]
+ 09/07/26 22:37:16,538 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 09/07/26 22:37:16,538 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 22:37:16,551 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 09/07/26 22:37:16,551 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 09/07/26 22:37:16,552 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 09/07/26 22:37:16,552 INFO  [e47e9eef-c4bd-7c15-ae06-33df13e33d71@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 04:14:07,690 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 10/07/26 04:14:16,247 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:1ab4838e072b(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-10T04:14:16.238811198Z, pending=2ms, running=2ms, lifetime=7ms)) 
+]
+ 10/07/26 04:14:34,697 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 10/07/26 04:14:34,698 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 04:14:34,712 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 10/07/26 04:14:34,712 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 04:14:34,713 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 10/07/26 04:14:34,713 INFO  [82ab3c29-c1ea-ed2f-d149-b0eaf003928b@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 11:55:03,602 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 10/07/26 11:55:11,536 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:5c7ad30d949e(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-10T11:55:11.526605339Z, pending=2ms, running=2ms, lifetime=7ms)) 
+]
+ 10/07/26 11:55:28,904 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 10/07/26 11:55:28,904 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 11:55:28,918 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 10/07/26 11:55:28,918 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 10/07/26 11:55:28,919 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 10/07/26 11:55:28,919 INFO  [ea653a83-c956-0e6e-0c40-aceb25777fe0@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 13:39:43,821 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 11/07/26 13:39:52,423 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:475145b1cacc(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T13:39:52.412222114Z, pending=3ms, running=3ms, lifetime=10ms)) 
+]
+ 11/07/26 13:40:15,084 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 11/07/26 13:40:15,084 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 13:40:15,099 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 11/07/26 13:40:15,099 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 13:40:15,101 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 11/07/26 13:40:15,102 INFO  [e3a566f2-b630-836f-7bc5-421cdf65087f@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 18:04:36,933 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 11/07/26 18:04:46,753 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:e55eb717a3fb(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T18:04:46.743490672Z, pending=2ms, running=2ms, lifetime=8ms)) 
+]
+ 11/07/26 18:05:04,891 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 11/07/26 18:05:04,892 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 18:05:04,903 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 11/07/26 18:05:04,903 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 18:05:04,905 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 11/07/26 18:05:04,905 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 19:11:46,921 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:31bc9c59ddc2(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-2, timing=(createdAt=2026-07-11T19:11:46.921245955Z, pending=0ms, running=0ms, lifetime=0ms)) 
+]
+ 11/07/26 19:12:46,924 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:ee003f465cdb(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-1, timing=(createdAt=2026-07-11T19:12:46.920990811Z, pending=0ms, running=3ms, lifetime=3ms)) 
+]
+ 11/07/26 19:13:46,926 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:cd636a3d4651(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-3, timing=(createdAt=2026-07-11T19:13:46.921291697Z, pending=0ms, running=5ms, lifetime=5ms)) 
+]
+ 11/07/26 19:15:46,929 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:d361ddbc6afb(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-2, timing=(createdAt=2026-07-11T19:15:46.921366440Z, pending=0ms, running=7ms, lifetime=7ms)) 
+]
+ 11/07/26 19:16:46,932 INFO  [9f8d4163-74c3-6902-0174-01e3cc519406@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:275ad2d92150(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-1, timing=(createdAt=2026-07-11T19:16:46.921177977Z, pending=0ms, running=10ms, lifetime=10ms)) 
+]
+ 11/07/26 20:23:30,011 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 11/07/26 20:23:42,557 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:f17641bff6f8(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T20:23:42.544957407Z, pending=4ms, running=3ms, lifetime=10ms)) 
+]
+ 11/07/26 20:24:02,013 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 11/07/26 20:24:02,014 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:24:02,032 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 11/07/26 20:24:02,032 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:24:02,034 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 11/07/26 20:24:02,034 INFO  [3926bb9e-5539-576f-4251-80ac9dae81a2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:46:50,181 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 11/07/26 20:46:59,217 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:1b830919ace3(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T20:46:59.207398390Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 11/07/26 20:47:18,378 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 11/07/26 20:47:18,379 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:47:18,392 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 11/07/26 20:47:18,392 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:47:18,393 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 11/07/26 20:47:18,393 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 20:47:59,217 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:4415c186b3ba(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T20:47:58.699588921Z, pending=0ms, running=517ms, lifetime=518ms)) 
+]
+ 11/07/26 20:48:59,415 INFO  [18159f8b-87fb-22c8-4bef-4b3b2bf81e86@job-reporter-1 ] [tificationAnalyzerJobProcessor] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.n.analyzer.DigestIssueAnalyzerJob:5e1a97fc7741(metadata=TES-64:14-322#14-323, state=RUNNING, priority=NORMAL, executingThread=notification-analyzer-1, timing=(createdAt=2026-07-11T20:48:58.448656857Z, pending=1ms, running=960ms, lifetime=966ms)) 
+]
+ 11/07/26 22:27:38,492 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 11/07/26 22:27:47,846 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:bdd471a731f8(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-11T22:27:47.836084250Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 11/07/26 22:28:06,320 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 11/07/26 22:28:06,321 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 22:28:06,334 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 11/07/26 22:28:06,335 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 11/07/26 22:28:06,336 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 11/07/26 22:28:06,336 INFO  [57c6a4da-831e-cd12-b7dd-64421b31c625@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 12/07/26 03:59:41,103 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 12/07/26 03:59:49,455 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:1d34dd3fcd5d(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-12T03:59:49.446786612Z, pending=2ms, running=2ms, lifetime=7ms)) 
+]
+ 12/07/26 04:00:08,344 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 12/07/26 04:00:08,345 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 12/07/26 04:00:08,356 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 12/07/26 04:00:08,356 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 12/07/26 04:00:08,357 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 12/07/26 04:00:08,357 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 12/07/26 08:05:50,006 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:df5256315008(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-12T08:05:49.976059257Z, pending=0ms, running=30ms, lifetime=30ms)) 
+]
+ 12/07/26 08:17:50,033 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:ad3c4a014fae(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-12T08:17:49.353534008Z, pending=0ms, running=679ms, lifetime=679ms)) 
+]
+ 12/07/26 08:18:50,061 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:e5b9da9e4147(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-12T08:18:49.720453635Z, pending=0ms, running=340ms, lifetime=341ms)) 
+]
+ 12/07/26 08:32:50,219 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [SendingDurabilityJobProcessor ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.n.durability.SendingDurabilityJob:d9ae439f26f7(metadata=null, state=RUNNING, priority=NORMAL, executingThread=sending-durability-182, timing=(createdAt=2026-07-12T08:31:20.179218957Z, pending=2ms, running=21ms, lifetime=1m 30s 39ms)) 
+]
+ 12/07/26 08:37:50,079 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 2
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:26f664637877(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-12T08:37:48.999359755Z, pending=0ms, running=1s 79ms, lifetime=1s 79ms)) 
+]
+ 12/07/26 11:00:50,378 INFO  [2d9ec053-df12-7ca8-fc1f-9c3eac379fc2@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:34c2326bb371(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-2, timing=(createdAt=2026-07-12T11:00:50.368791804Z, pending=0ms, running=9ms, lifetime=9ms)) 
+]
+ 13/07/26 11:57:48,310 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 13/07/26 11:57:56,496 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:4fe276ee9b11(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-13T11:57:56.485334144Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 13/07/26 11:58:14,319 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 13/07/26 11:58:14,319 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 13/07/26 11:58:14,332 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 13/07/26 11:58:14,332 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 13/07/26 11:58:14,333 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 13/07/26 11:58:14,333 INFO  [9b9817a7-b721-8dfb-c17f-31b4c21cc5e6@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 13/07/26 22:39:26,141 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 13/07/26 22:39:34,186 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:46e8d6095356(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-13T22:39:34.177312115Z, pending=2ms, running=2ms, lifetime=8ms)) 
+]
+ 13/07/26 22:39:51,033 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 13/07/26 22:39:51,034 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 13/07/26 22:39:51,044 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 13/07/26 22:39:51,044 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 13/07/26 22:39:51,045 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 13/07/26 22:39:51,046 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 14/07/26 01:39:34,465 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:b70741bf327b(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T01:39:34.251822209Z, pending=0ms, running=213ms, lifetime=213ms)) 
+]
+ 14/07/26 01:40:34,465 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:248d1ecfad9a(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T01:40:34.460086547Z, pending=0ms, running=4ms, lifetime=5ms)) 
+]
+ 14/07/26 02:03:34,555 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:0551c0e8ef78(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T02:03:34.511379022Z, pending=0ms, running=44ms, lifetime=44ms)) 
+]
+ 14/07/26 04:14:34,751 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:936b36b70997(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T04:14:34.542621030Z, pending=0ms, running=208ms, lifetime=208ms)) 
+]
+ 14/07/26 04:32:34,686 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:cffaba013cc3(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T04:32:33.933392972Z, pending=3ms, running=749ms, lifetime=752ms)) 
+]
+ 14/07/26 05:26:35,080 INFO  [adf39f6b-74e7-2618-5677-db471b95272b@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:80fc8086e6c9(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T05:26:34.501329592Z, pending=0ms, running=578ms, lifetime=578ms)) 
+]
+ 14/07/26 15:06:44,391 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 14/07/26 15:06:54,265 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:7ca5871e6629(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T15:06:54.253886719Z, pending=4ms, running=2ms, lifetime=10ms)) 
+]
+ 14/07/26 15:07:14,313 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 14/07/26 15:07:14,313 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 14/07/26 15:07:14,331 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 14/07/26 15:07:14,331 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 14/07/26 15:07:14,333 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 14/07/26 15:07:14,333 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 14/07/26 15:09:54,269 INFO  [e80431af-f71f-9c8d-fd64-b22ab51493ce@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:6067b8a519e9(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-14T15:09:53.833287989Z, pending=0ms, running=435ms, lifetime=435ms)) 
+]
+ 15/07/26 13:18:39,381 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 15/07/26 13:18:49,631 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:90603f618f8a(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-15T13:18:49.619571141Z, pending=5ms, running=2ms, lifetime=10ms)) 
+]
+ 15/07/26 13:19:12,422 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 15/07/26 13:19:12,423 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 13:19:12,435 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 15/07/26 13:19:12,435 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 13:19:12,436 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 15/07/26 13:19:12,437 INFO  [079ee478-3a6e-0c89-7608-5974e20153fb@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 18:04:58,873 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 15/07/26 18:05:08,412 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:5328d588b720(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-15T18:05:08.403303261Z, pending=3ms, running=3ms, lifetime=8ms)) 
+]
+ 15/07/26 18:05:26,846 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 15/07/26 18:05:26,847 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 18:05:26,859 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 15/07/26 18:05:26,859 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 18:05:26,860 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 15/07/26 18:05:26,860 INFO  [886d6d81-9ea1-14a8-49cf-8015de72a0e2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 19:36:42,929 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 15/07/26 19:36:51,737 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:2fb294da3535(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-15T19:36:51.727164538Z, pending=3ms, running=3ms, lifetime=9ms)) 
+]
+ 15/07/26 19:37:16,703 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 15/07/26 19:37:16,705 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 19:37:16,730 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 15/07/26 19:37:16,730 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 19:37:16,732 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 15/07/26 19:37:16,732 INFO  [0ad189a8-142d-a457-74b1-edd071610c20@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 21:27:24,586 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 15/07/26 21:27:32,978 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:ce7ff2e97e9d(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-15T21:27:32.968209687Z, pending=3ms, running=2ms, lifetime=9ms)) 
+]
+ 15/07/26 21:27:50,787 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 15/07/26 21:27:50,788 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 21:27:50,799 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 15/07/26 21:27:50,799 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 15/07/26 21:27:50,800 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 15/07/26 21:27:50,800 INFO  [b3cd54ed-180a-eb2e-1332-f6cffe0c81ee@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 16/07/26 01:09:00,008 WARN  [d6c72662-0998-a7f7-3fb9-7cf7a605c5a2@al-scheduling-4] [CleanupJobProcessor           ] [@] Unable to replace previous job j.y.n.cleanup.CleanupPersistedNotificationsScheduling$execute$job$1:c78b524d5049(status=COMPLETED) with j.y.n.cleanup.CleanupThreadsScheduling$execute$job$1:9aad1a5aeca3 in group standalone. 
+ 16/07/26 11:13:10,740 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 16/07/26 11:13:24,331 INFO  [9a3be187-802a-4c13-5199-3c682121a610@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: []
+ 16/07/26 11:13:49,899 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 16/07/26 11:13:49,900 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 16/07/26 11:13:49,917 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 16/07/26 11:13:49,917 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 16/07/26 11:13:49,918 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 16/07/26 11:13:49,918 INFO  [9a3be187-802a-4c13-5199-3c682121a610@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 16/07/26 12:12:24,558 INFO  [9a3be187-802a-4c13-5199-3c682121a610@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:4448539ef554(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-16T12:12:23.840253193Z, pending=0ms, running=712ms, lifetime=716ms)) 
+]
+ 17/07/26 16:19:09,396 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 17/07/26 16:19:19,946 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:8d942eb3ce7e(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-17T16:19:19.935498463Z, pending=3ms, running=3ms, lifetime=10ms)) 
+]
+ 17/07/26 16:19:42,850 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 17/07/26 16:19:42,851 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 17/07/26 16:19:42,871 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 17/07/26 16:19:42,871 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 17/07/26 16:19:42,872 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 17/07/26 16:19:42,873 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 17/07/26 16:44:20,118 INFO  [3062e5db-6f12-5e0d-2739-d117b5ef9b56@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:021a8add7cfe(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-17T16:44:19.133660490Z, pending=4ms, running=979ms, lifetime=984ms)) 
+]
+ 17/07/26 20:41:25,392 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 17/07/26 20:41:34,935 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:1cece1b12721(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-17T20:41:34.924792015Z, pending=4ms, running=2ms, lifetime=9ms)) 
+]
+ 17/07/26 20:41:55,697 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 17/07/26 20:41:55,698 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 17/07/26 20:41:55,712 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 17/07/26 20:41:55,712 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 17/07/26 20:41:55,714 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 17/07/26 20:41:55,714 INFO  [60a7c575-ee80-e4d5-bfa9-c22137edbdc2@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 01:55:49,783 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 18/07/26 01:56:04,819 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:43d0ed3eddb9(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-18T01:56:04.810430777Z, pending=2ms, running=2ms, lifetime=8ms)) 
+]
+ 18/07/26 01:56:34,385 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 18/07/26 01:56:34,386 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 01:56:34,409 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 18/07/26 01:56:34,409 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 01:56:34,411 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 18/07/26 01:56:34,411 INFO  [b05974e6-e6b3-b980-df03-178d49552dde@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 05:47:36,038 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 18/07/26 05:47:47,477 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:f38b31f84e1a(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-18T05:47:47.465524184Z, pending=3ms, running=3ms, lifetime=9ms)) 
+]
+ 18/07/26 05:48:07,240 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 18/07/26 05:48:07,241 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 05:48:07,253 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 18/07/26 05:48:07,253 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 05:48:07,254 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 18/07/26 05:48:07,254 INFO  [86479837-ef65-3b56-aaec-a59bff575c78@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 09:41:18,169 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 18/07/26 09:41:28,261 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:ede6c21d9966(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-18T09:41:28.251332986Z, pending=3ms, running=3ms, lifetime=9ms)) 
+]
+ 18/07/26 09:41:49,363 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 18/07/26 09:41:49,363 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 09:41:49,377 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 18/07/26 09:41:49,377 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 09:41:49,378 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 18/07/26 09:41:49,378 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 18/07/26 10:17:28,427 INFO  [2f4df3f5-ef9e-b806-baa3-4423d17c28b5@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:e903289dcbab(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-1, timing=(createdAt=2026-07-18T10:17:28.397533173Z, pending=0ms, running=29ms, lifetime=29ms)) 
+]
+ 19/07/26 23:10:59,976 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 19/07/26 23:11:09,958 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 1
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:5853ffb6d134(metadata=null, state=RUNNING, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-19T23:11:09.947455350Z, pending=3ms, running=3ms, lifetime=10ms)) 
+]
+ 19/07/26 23:11:28,181 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 19/07/26 23:11:28,182 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 19/07/26 23:11:28,196 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 19/07/26 23:11:28,196 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 19/07/26 23:11:28,197 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 19/07/26 23:11:28,197 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 00:42:10,211 INFO  [3dbea022-7a27-93cb-a1e5-8d28f90d7589@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:9c2a428bb93c(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-3, timing=(createdAt=2026-07-20T00:42:10.209397031Z, pending=0ms, running=1ms, lifetime=2ms)) 
+]
+ 20/07/26 00:58:39,645 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 20/07/26 00:58:51,442 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:f547918f06bb(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-20T00:58:51.431388856Z, pending=4ms, running=2ms, lifetime=9ms)) 
+]
+ 20/07/26 00:59:17,887 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 20/07/26 00:59:17,888 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 00:59:17,902 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 20/07/26 00:59:17,902 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 00:59:17,903 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 20/07/26 00:59:17,903 INFO  [83977693-3a7a-8a84-ce86-71daf6ab732a@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 04:13:16,569 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [MaintenanceJobThreadPool      ] [init@] Enabled autoscaling (checkIntervalSec=60, queueSizeThreshold=100)
+ 20/07/26 04:13:28,413 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.async.QueueNotIndexedDocumentsJob:7f64f1167d26(metadata=null, state=COMPLETED, priority=ABOVE_NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-20T04:13:28.392354398Z, pending=3ms, running=5ms, lifetime=18ms)) 
+]
+ 20/07/26 04:13:52,808 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 55000
+ 20/07/26 04:13:52,808 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 04:13:52,821 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed start delay: 0 -> 10000
+ 20/07/26 04:13:52,821 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [AnalysisDurabilityJobProcessor] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 04:13:52,822 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed start delay: 0 -> 70000
+ 20/07/26 04:13:52,822 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@init servlet   ] [SendingDurabilityJobProcessor ] [@] Changed timeout: 90000 -> 90000
+ 20/07/26 06:18:28,737 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:cf327a2bb8fa(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-20T06:18:28.631716673Z, pending=0ms, running=105ms, lifetime=105ms)) 
+]
+ 20/07/26 06:49:28,835 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:14a17134d2dd(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-3, timing=(createdAt=2026-07-20T06:49:28.833594348Z, pending=0ms, running=1ms, lifetime=2ms)) 
+]
+ 20/07/26 06:50:28,837 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:f9ea29931bdc(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-1, timing=(createdAt=2026-07-20T06:50:28.833745023Z, pending=0ms, running=3ms, lifetime=3ms)) 
+]
+ 20/07/26 06:52:28,841 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [LocalSchedulingJobProcessor   ] [system@] Job report:
+  Pending job count: 0
+  Running jobs: [
+ j.y.s.LocalScheduling$LocalSchedulingJob:b9cc3af47b3e(metadata=RemoteApiSyncService#/opt/youtrack/data/youtrack, state=RUNNING, priority=NORMAL, executingThread=local-scheduling-3, timing=(createdAt=2026-07-20T06:52:28.833636762Z, pending=0ms, running=7ms, lifetime=7ms)) 
+]
+ 20/07/26 07:18:28,866 INFO  [c46b0ff8-03f9-fd09-bf5c-d93255b0eeb3@job-reporter-1 ] [TextIndexManagerImpl          ] [system@] Job report:
+  Pending job count: 2
+  Running jobs: [
+ j.y.t.TextIndexManagerBase$BatchIndexingJob:2f3bd02f8902(metadata=null, state=RUNNING, priority=NORMAL, executingThread=text-index-1, timing=(createdAt=2026-07-20T07:18:28.822101241Z, pending=0ms, running=44ms, lifetime=44ms)) 
+]
+ 

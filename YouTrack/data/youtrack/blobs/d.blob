@@ -1,0 +1,663 @@
+UU/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const http = require('@jetbrains/youtrack-scripting-api/http');
+const cache = require('@jetbrains/youtrack-scripting-api/cache');
+const contextUtils = require('@jetbrains/youtrack-scripting-api/context-utils');
+const usersDirectory = require('@jetbrains/youtrack-atlassian-utils/users-directory');
+
+const IssueHandler = require('./issue-handler');
+const Events = require('./events');
+const Fields = require('./fields');
+const Security = require('./security');
+
+const jiraLinks = require('./links');
+const jiraUtils = require('./utils');
+const projectFieldPropertyNames = ['id', 'name', 'type', 'multiValue'];
+
+const createFakeSeraphNotOkResponse = function (result) { // required to handle https://jira.atlassian.com/browse/JRA-41559
+  const seraphHeaders = result.headers && result.headers.filter(header => header.name === 'X-Seraph-LoginReason') || [];
+  const seraphNotOkHeaders = seraphHeaders.filter(header => header.value.indexOf('Failure') > -1);
+  if (seraphHeaders.length > 0 && seraphNotOkHeaders.length > 0) {
+    return {
+      response: '{"errorMessages": "Response X-Seraph-LoginReason header set to ' + seraphNotOkHeaders[0].value + '. You are probably not authenticated"}',
+      code: result.code
+    };
+  }
+};
+
+// const toSearchTimeString = (timestamp, timeZoneId) => timestamp && dateTime.format(timestamp, 'yyyy-MM-dd HH:mm', timeZoneId);
+
+// -------------------- failure handlers ----------------
+
+const createCommonFailureHandler = (exceptionHandlingFunction, errorMessagePrefix) => {
+  return (failure) => {
+    if (failure.exception) {
+      exceptionHandlingFunction(failure.exception);
+      return;
+    }
+    let errorJson = null;
+    if (failure.response) {
+      try {
+        errorJson = JSON.parse(failure.response);
+      } catch (e) {
+        // ignore, html can be here, not json
+      }
+    }
+    exceptionHandlingFunction(errorMessagePrefix +
+      (errorJson ? (failure.code + ' ' + errorJson.errorMessages) : ('Server replied with status code ' + failure.code))
+    );
+  };
+};
+
+const networkFailureHandler = createCommonFailureHandler((error) => { throw error; }, '');
+
+const attachmentContentFailureHandler = createCommonFailureHandler(console.error, 'Error when requesting attachment content. ');
+
+const composeFailureHandler = function (customFailureHandler) {
+  return result => {
+    console.error('Error occurred when querying Jira');
+    if (result.response) {
+      let errorJson = null;
+      try {
+        errorJson = JSON.parse(result.response);
+      } catch (e) {
+        // ignore, html can be here, not json
+      }
+      console.error(result.code + ' ' + (errorJson ? errorJson.errorMessages : ''));
+    }
+    result.exception && console.error(result.exception);
+    customFailureHandler && customFailureHandler(result);
+  };
+};
+// -------------------- end of failure handlers ----------------
+
+let resolvedAuthType = null; // 'bearer' or 'basic', determined automatically
+const Jira = function (context) {
+  const ctxAccess = contextUtils.ContextAccess(context);
+
+  const addTrailingSlash = url => url + (url.lastIndexOf('/') === url.length - 1 ? '' : '/');
+  const url = addTrailingSlash(ctxAccess.getParam('url'));
+  const sslKeyName = ctxAccess.getParam('sslKeyName');
+  const login = ctxAccess.getParam('login');
+  const password = ctxAccess.getParam('password');
+
+  const applyAuthWithType = (connection, authType) => {
+    if (authType === 'bearer') {
+      return connection.bearerAuth(password);
+    }
+    return connection.basicAuth(login, password);
+  };
+
+  const determineAuthType = () => {
+    if (resolvedAuthType) {
+      return resolvedAuthType;
+    }
+    const testConnection = applyAuthWithType(new http.Connection(url + 'rest/api/2', sslKeyName), 'bearer');
+    const testResult = testConnection.getSync('/myself');
+    if (testResult.isSuccess || (testResult.code !== 401 && testResult.code !== 403)) {
+      resolvedAuthType = 'bearer';
+      console.log('Using Bearer authentication for Jira');
+      return 'bearer';
+    }
+    console.log('Bearer authentication failed, falling back to Basic authentication');
+    resolvedAuthType = 'basic';
+    return 'basic';
+  };
+
+  const authType = determineAuthType();
+  
+  const applyAuth = (connection) => {
+    return applyAuthWithType(connection, authType);
+  };
+
+  const jiraOldApiConnection = applyAuth(new http.Connection(url + 'rest/api/2', sslKeyName));
+  const jiraNewApiConnection = applyAuth(new http.Connection(url + 'rest/api/3', sslKeyName));
+  const jiraServiceManagementConnection = applyAuth(new http.Connection(url + 'rest/servicedeskapi', sslKeyName));
+  const authConnection = applyAuth(new http.Connection(url + 'rest/auth/1', sslKeyName));
+  const plainConnection = applyAuth(new http.Connection(url + 'secure', sslKeyName));
+  const client = {};
+
+  // support jira scoped tokens
+  // const JIRA_CLOUD_URL = "https://api.atlassian.com/ex/jira/";
+  // const CLOUD_ID_RESOURCE = "/_edge/tenant_info";
+  // let cloudId = null;
+
+  // ----------------- network routine ------------------
+  const getJsonsCache = function () {
+    return ctxAccess.getOrCreateObject('jsonsCache', () => {
+      return cache.create(100, 'JSONs');
+    });
+  };
+
+  const getSkippingFailureHandler = (statusCodesToSkip) => {
+    return (failure) => {
+      failure.code && (statusCodesToSkip.indexOf(failure.code) !== -1) || networkFailureHandler(failure);
+    };
+  };
+
+  const doGetJson = (connection, uri, failureHandler, ignoreCache) => {
+    failureHandler = failureHandler ? failureHandler : networkFailureHandler;
+    const doIt = function () {
+      try {
+        const result = connection.getSync(uri);
+        let fakeResponse;
+        if (!result.isSuccess || (fakeResponse = createFakeSeraphNotOkResponse(result))) {
+          composeFailureHandler(failureHandler)(fakeResponse || result);
+          return;
+        }
+        return JSON.parse(result.response);
+      } catch (e) {
+        console.error('Error in doGetJson for URI: ' + uri + '. Error: ' + e);
+        failureHandler({exception: e});
+      }
+    };
+    return ignoreCache ? doIt() : getJsonsCache().get(uri, doIt);
+  };
+
+  const getJson = (uri, failureHandler, ignoreCache) => {
+    if (ctxAccess.getParam('oldApi') === 'true') {
+      return doGetJson(jiraOldApiConnection, uri, failureHandler, ignoreCache);
+    }
+    if (ctxAccess.getParam('isCloud') === 'true') {
+      return doGetJson(jiraNewApiConnection, uri, failureHandler, ignoreCache);
+    }
+    return doGetJson(jiraOldApiConnection, uri, failureHandler, ignoreCache);
+  };
+
+  const getServiceManagementApiJson = (uri, failureHandler, ignoreCache) => {
+    return doGetJson(jiraServiceManagementConnection, uri, failureHandler, ignoreCache);
+  };
+
+  const getPaginated = (searchUri, arrayName, pageSize, successHandler, failureHandler) => {
+    let startAt = 0;
+    let nextPageToken = null;
+    let keepGoing;
+    do {
+      let uri = searchUri + (searchUri.includes('?') ? '&' : '?');
+      if (typeof nextPageToken === 'string' && nextPageToken.length) {
+        uri += 'nextPageToken=' + encodeURIComponent(nextPageToken);
+      } else {
+        uri += 'startAt=' + startAt;
+      }
+      uri += '&maxResults=' + pageSize;
+
+      const callResult = getJson(uri, failureHandler, true);
+      const result = arrayName ? callResult[arrayName] : callResult;
+
+      nextPageToken = callResult?.nextPageToken ?? null;
+      const fetched = result ? result.length : 0;
+      if (!nextPageToken) {
+        startAt += fetched;
+      }
+      keepGoing = successHandler(result) && (nextPageToken ? true : fetched === pageSize);
+    } while (keepGoing);
+  };
+
+  // ----------------- end of network routine ------------------
+
+  const getIssueChangelog = (issueKey, failureHandler) => {
+    // there's not need to get any field info here, but there is no way to turn it off completely
+    return getJson('/issue/' + issueKey + '?fields=created&expand=changelog', failureHandler);
+  };
+
+  const getProjectPermissions = (projectKey, failureHandler) => {
+    const ret = getJson('/mypermissions?permissions=BROWSE_PROJECTS,CREATE_ISSUES,ADMINISTER_PROJECTS&projectKey=' + projectKey, failureHandler);
+    const original = ret && ret['permissions'];
+    const permissions = {};
+    Object.keys(jiraUtils.permissionKeys).forEach(function (permissionKey) {
+      permissions[permissionKey] = jiraUtils.permissionKeys[permissionKey].some(function (alias) {
+        return original && original[alias] && original[alias].havePermission;
+      });
+    });
+    return permissions;
+  };
+
+  const accept = (field, condition, reason) => {
+    if (!condition) {
+      console.trace('Ignoring field id=' + field.id + ' name=' + field.name + ' as ' + reason);
+    }
+    return condition;
+  };
+
+  const acceptField = (field, issueHandler, fieldId) => {
+    return accept(field, field.schema, 'as it does not have \'schema\' attribute') &&
+      accept(field, issueHandler.unsupportedFieldTypes.indexOf(field.schema.custom) === -1, 'it is of an unsupported type ' + field.schema.custom) &&
+      accept(field, issueHandler.projectFieldsToIgnore.indexOf(fieldId) === -1, 'it is a predefined field not a field in YouTrack') &&
+      accept(field, issueHandler.issueFieldsToIgnore.indexOf(fieldId) === -1, 'it will be ignored when processing issues');
+  };
+
+  const prepareIssueTypes = (meta, url) => {
+    return meta.values.map(type => {
+      const typeFields = getJson(`${url}/${type.id}`);
+      type.fields = typeFields.values.reduce((acc, field) => {
+        acc[field.name] = field;
+        return acc;
+      }, {});
+      return type;
+    });
+  };
+
+  const getProjectFields = (project) => {
+    //https://confluence.atlassian.com/jiracore/createmeta-rest-endpoint-to-be-removed-975040986.html
+    const isCloud = ctxAccess.getParam('isCloud') !== 'false';
+    const [maj, min] = ctxAccess.getParam('version').split('.').map(Number);
+    const useLegacyMetaEndpoint = isCloud || (maj < 8 || (maj === 8 && min < 4));
+
+    const getProjectMetaUrl = (projectKey) => {
+      if (useLegacyMetaEndpoint) {
+        return `/issue/createmeta?projectKeys=${projectKey}&expand=projects.issuetypes.fields.allowedValues`;
+      }
+      return `/issue/createmeta/${projectKey}/issuetypes`;
+    };
+
+    const projectFields = {
+      'issuetype': {
+        'id': 'issuetype',
+        'name': 'Issue Type',
+        'schema': {
+          'type': 'issuetype',
+          'system': 'issuetype'
+        },
+        'valuesMap': {},
+        'allowedValues': []
+      },
+      'assignee': {
+        'id': 'assignee',
+        'name': 'Assignee',
+        'schema': {
+          'type': 'user',
+          'system': 'assignee'
+        },
+        'valuesMap': {},
+        'allowedValues': []
+      }
+    };
+    const projectKey = project.key;
+    if (!project.$permissions['CREATE_ISSUE']) {
+      console.info('Can not retrieve project fields schema for ' + projectKey + ' project, no CREATE_ISSUE permission');
+      return projectFields;
+    }
+    console.debug('Retrieving issue types for project ' + projectKey);
+    const projectMetaUrl = getProjectMetaUrl(projectKey);
+    const projectsMeta = getJson(projectMetaUrl, null, true);
+    const issueTypes = useLegacyMetaEndpoint
+      ? projectsMeta.projects[0].issuetypes
+      : prepareIssueTypes(projectsMeta, projectMetaUrl);
+    issueTypes.forEach(function (issueType) {
+      console.debug('Converting issue type ' + issueType.name);
+      Object.keys(issueType.fields).forEach(fieldId => {
+        const field = issueType.fields[fieldId];
+        const projectField = projectFields[fieldId] ||
+          jiraUtils.copyProperties(field, {'id': fieldId, 'multiValue': !!field.allowedValues}, ['schema', 'name']);
+        if (!projectFields[fieldId]) {
+          projectFields[fieldId] = projectField;
+        }
+        if (field.allowedValues) {
+          projectField.valuesMap = projectField.valuesMap || {};
+          projectField.allowedValues = projectField.allowedValues || [];
+          // Keep Jira's order: use valuesMap only for dedup, push into allowedValues on first sight
+          field.allowedValues.forEach(value => {
+            if (!projectField.valuesMap[value.id]) {
+              projectField.valuesMap[value.id] = value;
+              projectField.allowedValues.push(value);
+            }
+          });
+        }
+      });
+    });
+    Object.keys(projectFields).forEach(projectFieldId => {
+      const projectField = projectFields[projectFieldId];
+      console.trace(
+        'Project field id=' + projectField.id + ' name=' + projectField.name
+        + ', allowedValues: ' + JSON.stringify(projectField.allowedValues)
+      );
+    });
+    return projectFields;
+  };
+
+  const getProject = (projectInfo) => {
+    const projectId = projectInfo.id;
+    const projectKey = projectInfo.key;
+    const projectPermissions = getProjectPermissions(projectKey, function (result) {
+      if (result.code === 404) {
+        console.warn('Project is not accessible: ' + projectKey);
+        networkFailureHandler({exception: 'Project is not accessible: ' + projectKey});
+      } else {
+        networkFailureHandler(result);
+      }
+    });
+    console.info(projectKey + ' permissions: ' +
+      Object.keys(projectPermissions).map(key => key + ':' + projectPermissions[key]).join());
+    if (!projectPermissions['BROWSE']) {
+      console.warn('No permissions to view the project: ' + projectKey);
+      networkFailureHandler({exception: 'No permissions to view the project: ' + projectKey});
+    }
+
+    const jiraProject = getJson('/project/' + projectKey, networkFailureHandler);
+    const serviceDeskProject = jiraUtils.isServiceDeskProject(jiraProject);
+
+    if (!serviceDeskProject) {
+      jiraProject.lead = client.$private.fields.user(jiraProject.lead)[0];
+    } else {
+      jiraProject.lead = client.$private.fields.user(jiraProject.lead, {fields: {project: jiraProject}})[0];
+      jiraProject.type = 'HELP_DESK';
+    }
+
+    jiraProject.$permissions = projectPermissions;
+    jiraProject.$fieldValues = {};
+    const fieldSchema = ctxAccess.getObject('fieldSchema');
+    fieldSchema.projects[projectId] = jiraProject;
+
+    const issueHandler = client.$private.issueHandler;
+    const jiraProjectFields = getProjectFields(jiraProject);
+    console.info('Transforming project fields of project ' + projectKey);
+    jiraProject.fields = Object.keys(jiraProjectFields)
+      .filter(fieldId => {
+        const field = jiraProjectFields[fieldId];
+        return acceptField(field, issueHandler, fieldId);
+      })
+      .map(fieldId => {
+        const field = jiraProjectFields[fieldId];
+        const fieldName = field.name;
+        let existingField = fieldSchema.findField(fieldId, fieldName);
+        if (existingField) {
+          console.debug('Found field "' + existingField.name + '" that matches project field "' + fieldName + '" by id "' + fieldId + '"');
+        } else {
+          console.info('Adding field "' + fieldName + '" to schema based on the project field with id "' + fieldId + '"');
+          issueHandler.defineFieldType(field);
+          existingField = jiraUtils.copyProperties(field, {originalName: fieldName}, projectFieldPropertyNames);
+          fieldSchema.storeField(fieldId, fieldName, existingField);
+        }
+        const fieldInfo = 'id=' + fieldId + ' name=' + existingField.id + ' type=' + existingField.type;
+        if (issueHandler.projectFieldTypesToIgnore.indexOf(existingField.type) > -1) {
+          console.trace(
+            'Project ' + projectKey + '. Ignoring field ' + fieldInfo
+            + ' as it\'s type is to be ignored when processing project fields'
+          );
+          return null;
+        }
+        const converter = client.$private.fields[fieldId] || client.$private.fields[existingField.type];
+        if (converter) {
+          console.debug('Project ' + projectKey + '. Converting value of project field ' + fieldInfo);
+          jiraProject.$fieldValues[fieldId] = field.allowedValues && converter(field.allowedValues);
+          return jiraUtils.copyProperties(existingField, {values: jiraProject.$fieldValues[fieldId]}, projectFieldPropertyNames);
+        } else {
+          console.warn('Project ' + projectKey + '. No converter for field ' + fieldInfo + '. It will be skipped during issues processing.');
+          return null;
+        }
+      }).filter(elem => elem); // filter nulls out
+    console.info('Done transforming project fields of project ' + projectKey);
+    return jiraProject;
+  };
+
+  const getStatuses = failureHandler => getJson('/status', failureHandler);
+
+  const getRole = (projectKey, roleId) => {
+    const ret = getJson('/project/' + projectKey + '/role/' + roleId, getSkippingFailureHandler([401]));
+    if (ret) { // everything went fine
+      return ret;
+    }
+    if (roleId) {
+      return null;
+    } else {
+      return [];
+    }
+  };
+
+  const getComponent = (componentId, failureHandler) => getJson('/component/' + componentId, failureHandler);
+
+  const getIssue = (issueKey, failureHandler, compact) => {
+    const json = getJson('/issue/' + issueKey + '?expand=changelog', failureHandler);
+    return json && client.$private.issueHandler.fillIssue(json, failureHandler, compact);
+  };
+
+  const getIssueUpdates = (projectInfo, afterIssue, updatedAfter, top) => {
+    const projectKey = projectInfo.key;
+    const filters = [];
+    const fromId = afterIssue && afterIssue.id;
+    if (projectKey) {
+      filters.push(`project = "${projectKey}"`);
+    }
+    if (updatedAfter) {
+      filters.push(`updatedDate >= "${updatedAfter}"`);
+    }
+    if (fromId) {
+      filters.push(`id > ${fromId}`);
+    }
+    const isNewCloudApi = ctxAccess.getParam('isCloud') === 'true' && ctxAccess.getParam('oldApi') !== 'true';
+    const searchEndpoint = isNewCloudApi ? '/search/jql' : '/search';
+    const jql = encodeURIComponent(`${filters.join(' and ')} order by id`);
+    const searchUri = `${searchEndpoint}?jql=${jql}&fields=*all&expand=changelog`;
+    const pageSize = top || 5000;
+    let issues = [];
+    getPaginated(searchUri, 'issues', pageSize, jiraIssues => {
+      if (jiraIssues.length) {
+        jiraIssues.forEach(issue => {
+          client.$private.issueHandler.fillIssue(issue, null, false);
+        });
+        issues = jiraIssues;
+      }
+      return false;
+    });
+    return issues;
+  };
+
+  const getIssues = (projectInfo, afterIssue, top) => {
+    const pageSize = top || 1000;
+    return getIssueUpdates(projectInfo, afterIssue, null, pageSize);
+  };
+
+  const prepareFieldSchema = () => {
+    const fieldSchema = ctxAccess.getOrCreateObject('fieldSchema', () => {
+      return {
+        statuses: null,
+        resolutions: null,
+        prototypes: {}, // keys are original jira ids
+        nameToId: {}, // keys are original jira names
+        projects: {},
+        findField(id, name) {
+          if (!id && !name) {
+            throw 'Neither id nor name of a field passed to findField';
+          }
+          const idByName = this.nameToId[name];
+          return id && this.prototypes[id] || idByName && this.prototypes[idByName];
+        },
+        storeField(id, name, field) {
+          this.prototypes[id] = field;
+          this.nameToId[name] = id;
+        }
+      };
+    });
+
+    console.info('Request jira field schema: started');
+    const issueHandler = client.$private.issueHandler;
+    const specialFields = issueHandler.specialFields;
+    const fields = getJson('/field', networkFailureHandler);
+    fields
+      .filter(field => acceptField(field, issueHandler, field.id)) // fields like issuekey and Images (thumbnails) do not have schema. Don't need such fields
+      .forEach(field => {
+        const fieldId = field.id;
+        // special fields (like State, Assignee, etc) already has predefined type and name
+        const specialField = specialFields[fieldId];
+        if (specialField) {
+          fieldSchema.storeField(fieldId, specialField.originalName, specialField);
+        } else {
+          console.debug('Redefining type of field id=' + fieldId + ' name=' + field.name);
+          issueHandler.defineFieldType(field);
+          field.originalName = field.name;
+          fieldSchema.storeField(fieldId, field.originalName, field);
+        }
+      });
+    console.info('Request jira field schema: finished');
+  };
+
+  const prepareToImport = () => {
+    const sessionJson = doGetJson(authConnection, '/session', null, true);
+    if (!sessionJson || !sessionJson.name) {
+      throw 'Failed to connect to JIRA';
+    }
+    const isCloud = ctxAccess.getParam('isCloud') !== 'false';
+    ctxAccess.setObject('isCloud', isCloud);
+    if (isCloud && !usersDirectory.init(ctxAccess).initialized) {
+      throw 'No Jira user data uploaded. ' +
+      'Please upload export-users.csv that can be downloaded from ' + url + 'admin';
+    }
+    client.$private.sessionJson = sessionJson;
+    client.prepareFieldSchema();
+  };
+
+  const requestGroupMembers = (groupName) => {
+    const members = [];
+    getPaginated('/group/member?groupname=' + encodeURIComponent(groupName), 'values', 50, function (page) {
+      if (page && page.length) {
+        page.forEach(function (u) { members.push(u); });
+      }
+      return page && page.length > 0;
+    }, function (failure) {
+      networkFailureHandler(failure);
+    });
+    return membe¹rs;
+  };
+
+  const requestGroup = (groupName) => {
+    let fallbackToNewEndpoint = false;
+    const group = getJson('/group?groupname=' + encodeURIComponent(groupName) + '&expand=users', function (failure) {
+      if (failure.code === 405) {
+        console.warn('Old /group endpoint returned 405 for group ' + groupName + ', falling back to /group/member endpoint');
+        fallbackToNewEndpoint = true;
+      } else {
+        networkFailureHandler(failure);
+      }
+    });
+    if (fallbackToNewEndpoint) {
+      const members = requestGroupMembers(groupName);
+      return {name: groupName, users: {items: members}};
+    }
+    return group;
+  };
+
+  const getUsers = (jiraUserGroup, skip, top) => {
+    if (jiraUserGroup.id === jiraUtils.allUsersGroup.id) {
+      return [];
+    }
+    const group = requestGroup(jiraUserGroup.name);
+    const users = (group && group.users && group.users.items || []).slice(skip, skip + top);
+    const convert = client.$private.fields.user;
+    return users.map(user => convert(user)[0]);
+  };
+
+  const getProjects = () => {
+    const info = getJson('/serverInfo', networkFailureHandler, true);
+    ctxAccess.setParam('isCloud', String(info.deploymentType === 'Cloud'));
+    ctxAccess.setParam('version', info.version);
+    const isJiraSM = ctxAccess.getParam('jiraMode') === 'jsm';
+    if (!isJiraSM) {
+      return getJson('/project');
+    }
+    // JSM projects
+    const desks = getServiceManagementApiJson('/servicedesk').values || [];
+    return desks.map(desk => ({
+      id: desk.projectId,
+      key: desk.projectKey,
+      name: desk.projectName,
+      type: 'service_desk'
+    }));
+  };
+
+  const getLinkTypes = failureHandler =>
+    jiraLinks.linkTypes(getJson('/issueLinkType', failureHandler).issueLinkTypes);
+
+  const getTimestampFormats = () => {
+    return ['yyyy-MM-dd HH:mm', 'dd.MM.yyyy HH.mm', 'dd.MM.yy HH:mm', 'dd.MM.yy', 'yyyy-MM-dd\'T\'HH:mm:ss.SSSX', 'yyyy-MM-dd\'T\'HH:mm:ssX', 'yyyy-MM-dd\'T\'HH:mmX', 'yyyy-MM-dd', 'dd/MMM/yy HH:mm', 'dd/MMM/yy'];
+  };
+
+  const getUserTimeZoneId = () => {
+    const user = ctxAccess.getObject('isCloud')
+      ? getJson('/myself', null, true)
+      : getJson('/user?username=' + encodeURIComponent(client.$private.sessionJson.name), null, true);
+    return user && user.timeZone;
+  };
+
+  const requestUser = (locator, failureHandler) => {
+    const isCloud = ctxAccess.getObject('isCloud');
+    const path = isCloud ? ('/user?accountId=' + locator) : ('/user?username=' + encodeURIComponent(locator));
+    return getJson(path, failureHandler, true);
+  };
+
+  const requestUserType = (locator, failureHandler) => {
+    const path = `/user?accountId=${locator}&expand=applicationRoles`;
+    return getJson(path, failureHandler);
+  };
+
+  const getAttachmentContent = (project, issue, attachment) => {
+    const result = plainConnection.getSync('/attachment/' + attachment.id + '/');
+    if (result.isSuccess) {
+      return {data: result.responseAsStream};
+    } else {
+      attachmentContentFailureHandler(result);
+      return {data: result.responseAsStream}; // the exception has been written by failure handler
+    }
+  };
+
+  const getServerInfo = () => {
+    const info = getJson('/serverInfo', null, true);
+    return {version: info.version, time: info.serverTime, isCloud: info.deploymentType === 'Cloud'};
+  };
+
+  Object.assign(client, {
+    // api obligatory
+    getServerInfo: getServerInfo.bind(this), // api
+    getProjects: getProjects.bind(this), // api
+    getAttachmentContent: getAttachmentContent.bind(this), // api
+    getUsers: getUsers.bind(this), // api
+    // api optional
+    prepareToImport: prepareToImport.bind(this), // api
+    getIssues: getIssues.bind(this), // api
+    getLinkTypes: getLinkTypes.bind(this), // api
+    getProject: getProject.bind(this), // api
+    getIssueUpdates: getIssueUpdates.bind(this), // api
+    getTimestampFormats: getTimestampFormats.bind(this), // api
+    getUserTimeZoneId: getUserTimeZoneId.bind(this), // api
+    // internal
+    getSkippingFailureHandler: getSkippingFailureHandler.bind(this), // internal
+    getProjectPermissions: getProjectPermissions.bind(this), // internal
+    getStatuses: getStatuses.bind(this), // internal
+    getRole: getRole.bind(this), // internal
+    getComponent: getComponent.bind(this),  // internal
+    getIssue: getIssue.bind(this), // internal
+    getIssueChangelog: getIssueChangelog.bind(this), // internal
+    getProjectFields: getProjectFields.bind(this), // internal
+    prepareFieldSchema: prepareFieldSchema.bind(this), // internal
+    requestUser: requestUser.bind(this), // internal
+    requestGroup: requestGroup.bind(this), // internal
+    requestUserType: requestUserType.bind(this), //internal
+
+    security: Security(client, ctxAccess),
+    $private: {
+      getJson: getJson.bind(this),
+      networkFailureHandler: networkFailureHandler.bind(this),
+
+      issueHandler: IssueHandler(client, ctxAccess),
+      events: Events(client, ctxAccess),
+      fields: Fields(client, ctxAccess)
+    }
+  });
+
+  return client;
+};
+
+exports.Client = Jira;

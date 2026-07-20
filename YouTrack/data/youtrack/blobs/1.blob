@@ -1,0 +1,616 @@
+UU/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Contains definitions for objects and classes that exchange and transfer data over HTTP. The main class is {@link Connection}.
+ *
+ * @module @jetbrains/youtrack-scripting-api/http
+ */
+
+/**
+ * @typedef REQUEST_TYPES
+ *
+ * @classdesc A collection of supported HTTP request types. Note that instead of passing a proper
+ * request type to the {@link Connection}.doSync method, there are dedicated methods that correspond to each
+ * request type that you can call directly. For example, getSync or postSync.
+ *
+ * @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods|HTTP request methods on MDN}
+ *
+ * @type {object}
+ */
+const REQUEST_TYPES = {
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Requests data from the target resource.
+   */
+  GET: 'GET',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Same as GET, but the response only contains headers and no data.
+   */
+  HEAD: 'HEAD',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Submits data to the target resource.
+   */
+  POST: 'POST',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Replaces all current representations of the target resource.
+   */
+  PUT: 'PUT',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Applies partial modifications to the target resource.
+   */
+  PATCH: 'PATCH',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Deletes the target resource.
+   */
+  DELETE: 'DELETE',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Establishes a tunnel to the server identified by the target resource.
+   */
+  CONNECT: 'CONNECT',
+  /**
+   * @type {string}
+   * @memberOf REQUEST_TYPES
+   * @readonly
+   * @description Describes the communication options for the target resource.
+   */
+  OPTIONS: 'OPTIONS'
+};
+
+/**
+ * @typedef {Object} Connection
+ *
+ * @classdesc Main class that is used to establish a connection and send requests to target sites.
+ *
+ * @property {string} [url] The URL of the target site for the connection.
+ * Can be empty, as you can specify the URI as a parameter for any request method.
+ * @property {Array<{name: String, value: String}>} [headers] A list of headers.
+ *
+ * @example
+ * // Gets the content of a PasteBin paste, assuming that we have received its key (`pasteBinKey`) in a prior request.
+ * const connection = new http.Connection('http://pastebin.com/raw/');
+ * connection.addHeader({name: 'Content-Type', value: 'text/plain'});
+ * const response = connection.getSync(pasteBinKey, '');
+ * if (response && response.code === 200) {
+ *   let text = '';
+ *   response.headers.forEach(function(header) {
+ *     text += header.name + ': ' + header.value + '\n';
+ *   });
+ *   text += '\n' + response.response;
+ *   issue.addComment(text);
+ * }
+ */
+
+/**
+ * Creates an object that lets you establish a connection with a target site.
+ * @param {string} [url] The URL of the target site for the connection.
+ * Can be empty, as you can specify the URI as a parameter for any request method.
+ * @param {string} [sslKeyName] Optional name of the SSL key that is used to establish a secure connection. If you don't want to specify this parameter, pass 'null'.
+ * @param {int} [timeout] Optional parameter that specifies the connection timeout for outgoing HTTP requests in milliseconds.
+ * @constructor Connection
+ *
+ * @see doSync
+ */
+function normalizeQueryParams(queryParams) {
+  if (queryParams && !Array.isArray(queryParams) && (typeof queryParams !== 'object')) {
+    throw 'queryParams should be an array of objects {name: \'paramName\', value: \'paramValue\'} or an object. In the later case keys are treated as parameters names';
+  }
+  if (queryParams && !Array.isArray(queryParams) && (typeof queryParams === 'object')) {
+    const qp = [];
+    Object.keys(queryParams).forEach(function (key) {
+      const value = queryParams[key];
+      if (typeof value === 'string') {
+        qp.push({name: key, value: value});
+      } else if (Array.isArray(value)) {
+        value.forEach(function (singleValue) {
+          qp.push({name: key, value: singleValue});
+        });
+      } else if (!value) {
+        qp.push({name: key, value: 'null'});
+      } else if (typeof value === 'object' && value.isSecret) {
+        qp.push({name: key, value: value});
+      } else {
+        throw 'Can not correctly handle ' + key + ' query parameter. It should be either a string for a single value, or an array for multiple values';
+      }
+    });
+    return qp;
+  }
+  return queryParams || [];
+}
+
+const Connection = function (url, sslKeyName, timeout) {
+  Object.defineProperty(this, 'url', {value: url});
+  Object.defineProperty(this, 'sslKeyName', {value: sslKeyName || null});
+  Object.defineProperty(this, 'timeout', {value: timeout || null});
+  const ClientFactory = Java.type('jetbrains.youtrack.scripts.http.ClientFactory');
+  Object.defineProperty(this, 'httpClient', {value: ClientFactory.getHttpClient(sslKeyName, timeout)});
+  Object.defineProperty(this, 'headers', {value: []});
+};
+
+/**
+ * Adds a new header to the current connection.
+ * The `value` parameter can also contain references to secrets stored in the settings for a YouTrack app.
+ * @param {Object|string} header A header object with the structure {name: string, value: string}.
+ * If the value parameter is specified separately, the provided string is used as the name of the header.
+ * @param {string} [value] The value that is assigned to the header.
+ * Only considered when the first parameter is specified as a string.
+ * @returns {Connection} The current connection object.
+ */
+Connection.prototype.addHeader = function (header, value) {
+  if (typeof header === 'string') {
+    header = {name: header, value: value};
+  }
+  this.headers.push(header);
+  return this;
+};
+
+/**
+ * Sets a header to the current connection. If the specified header already exists, its value is updated.
+ * The `value` parameter can also contain references to secrets stored in the settings for a YouTrack app.
+ * @param {Object|string} header A header object with the structure {name: string, value: string}.
+ * If the value parameter is specified separately, the provided string is used as the name of the header.
+ * @param {string} [value] The value that is assigned to the header.
+ * Only considered when the first parameter is specified as a string.
+ * @returns {Connection} The current connection object.
+ */
+Connection.prototype.setHeader = function (header, value) {
+  const headerName = typeof header === 'string' ? header : header.name;
+  const existing = this.headers.find(it => it.name === headerName);
+  if (existing) {
+    existing.value = value;
+  } else {
+    return this.addHeader(header, value);
+  }
+  return this;
+};
+
+/**
+ * Adds an authorization header with the value returned by the Base64.encode(login + ':' + password) function.
+ * The `password` parameter also accepts references to secrets stored in the settings for a YouTrack app.
+ * @param {String} login The login to use for the authorization request.
+ * @param {String} password The password to use for the authorization request.
+ * @returns {Connection} The current connection object.
+ */
+Connection.prototype.basicAuth = function (login, password) {
+  Object.defineProperty(this, '_basicAuth', {
+    value: { login: login, password: password },
+    writable: false
+  });
+  return this;
+};
+
+/**
+ * Adds an authorization header with the value in "Bearer" format ('Bearer ' + token).
+ * The `token` parameter also accepts references to secrets stored in the settings for a YouTrack app.
+ * @param {String} token The token to use for the authorization request.
+ * @returns {Connection} The current connection object.
+ */
+Connection.prototype.bearerAuth = function (token) {
+  Object.defineProperty(this, '_bearerAuth', {
+    value: token,
+    writable: false
+  });
+  return this;
+};
+
+/**
+ * @typedef {Object} Response
+ *
+ * @classdesc A class that creates a definition for an HTTP response.
+ * If an exception occurs during processing, most of the properties in the response object are empty.
+ *
+ * @property {string} [response] The response body. If an exception occurs during processing, the response body is empty (null).
+ *
+ * @property {Object} [responseAsStream] A byte stream representation of the response body.
+ * If an exception occurs during processing, the property is empty (null).
+ *
+ * @property {Array<{name: String, value: String}>} [headers] A collection of response headers.
+ * If an exception occurs during processing, the collection is empty.
+ *
+ * @property {number} [code] The HTTP status code that is assigned to the response.
+ * If an exception occurs during processing, the property is empty.
+ *
+ * @property {Object} [exception] The exception that occurred during processing.
+ *
+ * @property {boolean} [isSuccess] An indication of the success or failure for the request.
+ * If the HTTP status code is between 200 (inclusive) and 400 (exclusive), this property is set to 'true'.
+ *
+ * @example
+ * // Gets the content of a PasteBin paste, assuming that we have received its key (`pasteBinKey`) in a prior request.
+ * const http = require('@jetbrains/youtrack-scripting-api/http');
+ * const connection = new http.Connection('http://pastebin.com/raw/');
+ * connection.addHeader({name: 'Content-Type', value: 'text/plain'});
+ * const response = connection.getSync(pasteBinKey, '');
+ * if (response && response.code === 200) {
+ *   let text = '';
+ *   response.headers.forEach(function(header) {
+ *     text += header.name + ': ' + header.value + '\n';
+ *   });
+ *   text += '\n' + response.response;
+ *   issue.addComment(text);
+ * }
+ */
+
+/**
+ * Sends a synchronous HTTP request. Note that instead of passing a proper
+ * request type with this method, there are dedicated methods that correspond to each
+ * request type that you can call directly. For example, getSync or postSync.
+ *
+ * @param {string} requestType A valid HTTP request type. For a list of supported request types, see {@link REQUEST_TYPES}.
+ *
+ * @param {string} [uri] A relative URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>} [queryParams] The query parameters.
+ *
+ * @param {string|Array|Object} [payload] The payload to be sent in the request.
+ *
+ * @return {Response} An object that represents the HTTP response.
+ */
+Connection.prototype.doSync = function (requestType, uri, queryParams, payload) {
+  queryParams = normalizeQueryParams(queryParams);
+  console.trace('Initiated a connection. Base url: ' + this.url + ', uri: ' + uri);
+
+  const request = this.httpClient.request(requestType, this.url, uri);
+  queryParams.forEach(function (p) {
+    request.addParameter(p.name, p.value);
+  });
+  var isJson = true;
+  this.headers.forEach(function (elem) {
+    if (elem.name.toLowerCase() === 'content-type' && !elem.value.startsWith('application/json')) {
+      isJson = false
+    }
+    request.addHeader(elem.name, elem.value);
+  });
+  if (this._basicAuth) {
+    request.addBasicAuthHeader(this._basicAuth.login, this._basicAuth.password);
+  }
+  if (this._bearerAuth) {
+    request.addBearerAuthHeader(this._bearerAuth);
+  }
+  if (payload) {
+    if (typeof payload === 'string') {
+      request.setPayload(payload);
+    } else if (payload.type === 'multipart/form-data' && payload.parts && payload.parts.length && Object.keys(payload).length === 2) {
+      request.setPayload(payload);
+    } else if (!isJson) {
+      request.setPayload(payload);
+    } else {
+      request.setPayload(JSON.stringify(payload));
+    }
+  }
+  const res = request.go();
+  const responsePropertyDescriptors = {};
+  ['response', 'responseAsStream', 'headers', 'code', 'exception'].forEach((name) => {
+    responsePropertyDescriptors[name] = {
+      get: () => {
+        const getterName = 'get' + name.charAt(0).toUpperCase() + name.slice(1);
+        const getter = res[getterName];
+        return getter && getter();
+      }
+    };
+  });
+  responsePropertyDescriptors.body = {
+    get: () => {
+      return res.getResponse();
+    }
+  }
+  responsePropertyDescriptors.bodyAsStream = {
+    get: () => {
+      return res.getResponseAsStream();
+    }
+  }
+  responsePropertyDescriptors.json = {
+    value: () => {
+      const v = res.getResponse();
+      if (typeof v === 'string') {
+        return JSON.parse(v);
+      } else {
+        return v;
+      }
+    }
+  }
+  responsePropertyDescriptors.isSuccess = {
+    get: () => res.isSuccess()
+  };
+  responsePropertyDescriptors.toString = {
+    value: () => res.toString()
+  };
+  responsePropertyDescriptors.$$raw = {
+    enumerable: false,
+    get: () => res
+  };
+  return Object.defineProperties({}, responsePropertyDescriptors);
+};
+
+/**
+ * Executes a synchronous GET request.
+ *
+ * @param {String} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.getSync = function (uri, queryParams) {
+  return this.doSync(REQUEST_TYPES.GET, uri, queryParams);
+};
+
+
+/**
+ * Executes a synchronous HEAD request.
+ *
+ * @param {string} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.headSync = function (uri, queryParams) {
+  return this.doSync(REQUEST_TYPES.HEAD, uri, queryParams);
+};
+
+/**
+ * Executes a synchronous POST request.
+ *
+ * @param {string} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ * If the payload parameter is empty, the query parameters are passed as a form entity.
+ *
+ * @param {string|Object} [payload] The payload to be sent in the request.
+ *
+ * For posting attachment files from YouTrack to a third-party application,
+ * pass the payload as an object, set its `type` value to 'multipart/form-data', and pass the attachments in `parts`.
+ * For each part, `name`, `size`, `fileName`, and `content` values are required.
+ * See an example of such a request below.
+ * For details, see {@link https://www.jetbrains.com/help/youtrack/devportal/JS-Workflow-REST-API.html#post-multipart|Posting Binary Content with multipart/form-data Type}
+ *
+ * @example
+ * const attachment = issue.attachments.first();
+ * connection.postSync('issues/' + issue.id + '/attachments', [], {
+ *     type: 'multipart/form-data',
+ *     parts: [
+ *         {
+ *             // These four fields are required for each part.
+ *             // Optionally, you can also set the `contentType` value individually for each part.
+ *             name: 'my-part-name',
+ *             size: attachment.size,
+ *             fileName: 'filename',
+ *             content: attachment.content
+ *         }
+ *     ]
+ * });
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.postSync = function (uri, queryParams, payload) {
+  return this.doSync(REQUEST_TYPES.POST, uri, queryParams, payload);
+};
+
+/**
+ * Executes a synchronous PUT request.
+ *
+ * @param {string} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ * If the payload parameter is empty, the query parameters are passed as a form entity.
+ *
+ * @param {string} [payload] The payload to be sent in the request.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.putSync = function (uri, queryParams, payload) {
+  return this.doSync(REQUEST_TYPES.PUT, uri, queryParams, payload);
+};
+
+/**
+ * Executes a synchronous PATCH request.
+ *
+ * @param {string} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @param {string} [payload] The payload to be sent in the request.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.patchSync = function (uri, queryParams, payload) {
+  return this.doSync(REQUEST_TYPES.PATCH, uri, queryParams, payload);
+};
+
+/**
+ * Executes a synchronous DELETE request.
+ *
+ * @param {string} [uri] The request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.deleteSync = function (uri, queryParams) {
+  return this.doSync(REQUEST_TYPES.DELETE, uri, queryParams);
+};
+
+/**
+ * Executes a synchronous CONNECT request.
+ *
+ * @param {string} [uri] request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.connectSync = function (uri, queryParams) {
+  return this.doSync(REQUEST_TYPES.CONNECT, uri, queryParams);
+};
+
+/**
+ * Executes a synchronous OPTIONS request.
+ *
+ * @param {string} [uri] request URI.
+ * The complete URL is a concatenation of the string that is passed to the URL parameter in the Connection constructor and this string.
+ * If the URL parameter in the Connection constructor is empty, specify the absolute URL of the target site.
+ *
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * If an object is passed, its keys are considered to be parameter names.
+ *
+ * @return {Response} An object that represents an HTTP response.
+ */
+Connection.prototype.optionsSync = function (uri, queryParams) {
+  return this.doSync(REQUEST_TYPES.OPTIONS, uri, queryParams);
+};
+
+/**
+ * Schedules an asynchronous HTTP request. The request is executed after the current transaction commits,
+ * and the response is passed to the named async function handler.
+ *
+ * @param {string} requestType A valid HTTP request type.
+ * @param {string} [uri] A relative URI.
+ * @param {Array<{name: String, value: String}>|Object} [queryParams] The query parameters.
+ * @param {string|Object} [payload] The payload to be sent in the request.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.doAsync = function (requestType, uri, queryParams, payload, handlerName) {
+  if (!handlerName || typeof handlerName !== 'string') {
+    throw 'handlerName must be a non-empty string identifying an async function';
+  }
+  queryParams = normalizeQueryParams(queryParams);
+  var preparedPayload = null;
+  if (payload) {
+    if (typeof payload === 'string') {
+      preparedPayload = payload;
+    } else {
+      preparedPayload = JSON.stringify(payload);
+    }
+  }
+  var headersArray = this.headers.length > 0 ? this.headers : null;
+  var basidcLogin = this._basicAuth ? this._basicAuth.login : null;
+  var basicPassword = this._basicAuth ? this._basicAuth.password : null;
+  var bearer = this._bearerAuth || null;
+  var AsyncBridge = Java.type('jetbrains.youtrack.scripts.async.AsyncHttpBridge');
+  AsyncBridge.scheduleHttpAsync(
+    requestType, this.url, uri || '',
+    queryParams || null, preparedPayload,
+    headersArray, handlerName,
+    this.sslKeyName, this.timeout,
+    basicLogin, basicPassword, bearer
+  );
+};
+
+/**
+ * Schedules an asynchronous GET request.
+ * @param {string} [uri] The request URI.
+ * @param {Array|Object} [queryParams] The query parameters.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.getAsync = function (uri, queryParams, handlerName) {
+  return this.doAsync(REQUEST_TYPES.GET, uri, queryParams, null, handlerName);
+};
+
+/**
+ * Schedules an asynchronous POST request.
+ * @param {string} [uri] The request URI.
+ * @param {Array|Object} [queryParams] The query parameters.
+ * @param {string|Object} [payload] The payload to be sent in the request.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.postAsync = function (uri, queryParams, payload, handlerName) {
+  return this.doAsync(REQUEST_TYPES.POST, uri, queryParams, payload, handlerName);
+};
+
+/**
+ * Schedules an asynchronous PUT request.
+ * @param {string} [uri] The request URI.
+ * @param {Array|Object} [queryParams] The query parameters.
+ * @param {string|Object} [payload] The payload to be sent in the request.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.putAsync = function (uri, queryParams, payload, handlerName) {
+  return this.doAsync(REQUEST_TYPES.PUT, uri, queryParams, payload, handlerName);
+};
+
+/**
+ * Schedules an asynchronous PATCH request.
+ * @param {string} [uri] The request URI.
+ * @param {Array|Object} [queryParams] The query parameters.
+ * @param {string|Object} [payload] The payload to be sent in the request.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.patchAsync = function (uri, queryParams, payload, handlerName) {
+  return this.doAsync(REQUEST_TYPES.PATCH, uri, queryParams, payload, handlerName);
+};
+
+/**
+ * Schedules an asynchronous DELETE request.
+ * @param {string} [uri] The request URI.
+ * @param {Array|Object} [queryParams] The query parameters.
+ * @param {string} handlerName The name of the async function to call with the response.
+ * @since 2026.2
+ */
+Connection.prototype.deleteAsync = function (uri, queryParams, handlerName) {
+  return this.doAsync(REQUEST_TYPES.DELETE, uri, queryParams, null, handlerName);
+};
+
+exports.Connection = Connection;
+exports.REQUEST_TYPES = REQUEST_TYPES;

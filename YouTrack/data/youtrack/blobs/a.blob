@@ -1,0 +1,328 @@
+*˜/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const http = require('@jetbrains/youtrack-scripting-api/http');
+const GithubUtils = require('./github-utils');
+const IssuesConverter = require('./github-issue-converter');
+const HistoryConverter = require('./github-history-converter');
+const ArticlesConverter = require('./github-content-converter');
+const ArticlesLoader = require('./github-content-loader');
+
+const GitHubIssues = function (context) {
+  const client = {};
+
+  const ghUtils = () => client.$private.utils;
+  const getTimestampFormats = () => {
+    return ['yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', 'yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', 'EEE, d MMM yyyy HH:mm:ss z'];
+  };
+
+  const params = context.parameters;
+  let baseUrl = params.loadValue('baseUrl').trim();
+  try {
+    if (baseUrl.toLowerCase() === 'https://github.com') {
+      baseUrl = 'https://api.github.com';
+    }
+  } catch (e) {
+    throw 'Failed to parse base url: "' + baseUrl + '"';
+  }
+  const sslKeyName = params.loadValue('sslKeyName');
+  const token = params.loadValue('password');
+  const connection = new http.Connection(baseUrl, sslKeyName)
+      .addHeader('Authorization', 'token ' + token)
+      .addHeader('Accept', 'application/vnd.github.v3+json');
+  const fileConnection = new http.Connection('', sslKeyName);
+
+  //FIXME: It doesn't seem like the best idea for getting the readme content í ¾í·
+  const ghArticleConnection = new http.Connection('https://raw.githubusercontent.com', sslKeyName)
+      .addHeader('Authorization', 'token ' + token)
+      .addHeader('Accept', 'application/vnd.github.v3+json');
+
+
+  const getProjects = () => {
+    const urlProjects = JSON.parse(params.loadValue('urlProjects'));
+    const targetProject = urlProjects && urlProjects.length && urlProjects[0] || {
+      id: '',
+      key: '',
+      name: ''
+    };
+    const ghProjects = ghUtils().loadJson('/user/repos', connection);
+
+    const found = ghProjects
+        .filter(project => project.name === targetProject.name && project.full_name === targetProject.id)
+        .map(project => {
+          return {
+            id: project.id,
+            name: project.name,
+            key: project.name
+          };
+        });
+
+    // that means that we do not found a project in user repos but we still could import this repo
+    if (!found.length) {
+      const target = ghUtils().loadJson('/repos/' + targetProject.id, connection);
+      return [{
+        id: target.id,
+        name: target.name,
+        key: target.name
+      }];
+    }
+    return found;
+  };
+
+  const getProject = (projectKey) => {
+    const project = ghUtils().loadJson('/repositories/' + projectKey.id, connection);
+    const milestones = ghUtils().loadJson('/repositories/' + projectKey.id + '/milestones', connection, {'state': 'all'});
+
+    const convertedMilestones = milestones.map(function (milestone) {
+      return {
+        name: milestone.title,
+        description: milestone.description,
+        releaseDate: milestone.due_on,
+        released: milestone.state === 'closed'
+      };
+    });
+
+    return {
+      id: projectKey.id,
+      name: project.name,
+      key: projectKey.key,
+      description: project.description,
+      lead: ghUtils().convertUser(project.owner),
+      fields: [
+        {
+          id: 'State',
+          name: 'State',
+          multiValue: false,
+          type: 'state',
+          values: [
+            {
+              name: 'Open',
+              isResolved: false
+            },
+            {
+              name: 'Closed',
+              isResolved: true
+            }
+          ]
+        },
+        {
+          id: 'Type',
+          name: 'Type',
+          multiValue: true,
+          type: 'enum',
+          values: [
+            {
+              name: 'bug',
+              description: 'Something isn\'t working'
+            },
+            {
+              name: 'enhancement',
+              description: 'New feature or request'
+            },
+            {
+              name: 'question',
+              description: 'Further information is requested'
+            }
+          ]
+        },
+        {
+          id: 'Milestone',
+          name: 'Milestone',
+          multiValue: true,
+          type: 'version',
+          values: convertedMilestones
+        },
+        {
+          id: 'Assignee',
+          name: 'Assignee',
+          multiValue: true,
+          type: 'user'
+        }
+      ]
+    };
+  };
+
+  const prepareToImport = () => {
+    console.log('Preparing to import issues from GitHub server with baseUrl ' + baseUrl);
+    const projectsToImport = JSON.parse(params.loadValue('projectsToImport'));
+    const targetProject = projectsToImport.length && projectsToImport[0];
+    if (targetProject) {
+      const project = ghUtils().loadJson('/repositories/' + targetProject.id, connection);
+      const privateProject = project.private;
+      params.saveValue('privateProject', privateProject + '');
+    }
+  };
+
+  const getServerInfo = () => {
+    const response = connection.getSync('/?');
+    const headers = ghUtils().headersToMap(response.headers);
+    const versionHeader = headers['x-github-media-type'];
+
+    const isoDateTime = new Date(headers['date']).toISOString();
+
+    return {
+      version: versionHeader.split(';')[0],
+      time: isoDateTime
+    };
+  };
+
+  const loadIssues = (project, from, top, since) => {
+    const privateProject = params.loadValue('privateProject') === 'true';
+    let count = 0;
+    let ghIssues = [];
+    const query = {
+      'sort': 'created',
+      'direction': 'asc',
+      'state': 'all',
+      'per_page': '50'
+    };
+    if (since) {
+      query.since = since;
+      query.sort = 'updated';
+    }
+    let loadedIssues = {};
+    const loadedIssuesStr = params.loadValue('loadedIssues') || '';
+    loadedIssuesStr && (loadedIssuesStr.trim().split(',').forEach(id => loadedIssues[id] = true));
+    const attachmentsMap = JSON.parse(params.loadValue('attachmentsMap') || '{}');
+    let page = parseInt(params.loadValue('page') || '0');
+    query.page = page + '';
+
+    if (!from) {
+      loadedIssues = {};
+      params.saveValue('loadedIssues', '');
+      params.saveValue('page', '0');
+    }
+
+    while (count < top) {
+      let issues = ghUtils().loadJson('/repositories/' + project.id + '/issues', connection, query);
+      page++;
+      query.page = page + '';
+      if (issues.length) {
+
+        issues.forEach(function (issue) {
+          if (count >= top) {
+            return;
+          }
+          if (!loadedIssues[issue.id]) {
+            issue.attachments = [];
+
+            if (!issue.pull_request) {
+              loadedIssues[issue.id] = true;
+              ghIssues.push(issue);
+              count++;
+              if (issue.comments) {
+                issue.gh_comments = ghUtils().loadIssueComments(project.id, issue.number);
+                issue.gh_comments.forEach(function (comment) {
+                  ghUtils().extractAttachmentsFromComment(issue, comment, attachmentsMap, privateProject);
+                });
+              }
+
+              ghUtils().extractAttachmentsFromIssue(issue, attachmentsMap, privateProject);
+
+              const issueEvents = ghUtils().loadIssueEvents(project.id, issue.number);
+              if (typeof issueEvents !== 'undefined' && issueEvents.length > 0) {
+                issue.gh_events = issueEvents;
+              }
+            }
+          }
+        });
+      } else {
+        break;
+      }
+    }
+    ghIssues = ghIssues.map(client.$private.issueConverter.convertGHIssue);
+    const loadedIssuesArray = [];
+    for (let issueId in loadedIssues) {
+      loadedIssuesArray.push(issueId);
+    }
+    params.saveValue('page', (page - 1) + '');
+    params.saveValue('loadedIssues', loadedIssuesArray.join(','));
+    params.saveValue('attachmentsMap', JSON.stringify(attachmentsMap));
+    if (ghIssues.length < top) {
+      params.saveValue('page', '0');
+    }
+    return ghIssues;
+  };
+
+  const getIssues = (project, from, top) => {
+    return loadIssues(project, from, top, null);
+  };
+
+  const getIssueUpdates = (project, fromIssue, after, top) => {
+    return loadIssues(project, fromIssue, top, after);
+  };
+
+  const getArticles = (project) => {
+    const converted = [];
+    const ghArticles = client.$private.articlesLoader.loadGHArticles(connection, project.id);
+    const attachmentsMap = JSON.parse(params.loadValue('attachmentsMap') || '{}');
+
+    ghArticles.forEach(article => {
+      const contentUri = article.download_url.replace('https://raw.githubusercontent.com', '');
+      const articleContent = ghUtils().loadFileContent(ghArticleConnection, contentUri);
+
+      console.info(`File with name ${article.name} loaded successfully`);
+
+      converted.push(
+          client.$private.articlesConverter.convertGHArticle(project.id, articleContent, article.name, connection, attachmentsMap)
+      );
+    });
+    params.saveValue('attachmentsMap', JSON.stringify(attachmentsMap));
+    return converted;
+  };
+
+  const getAttachmentContent = function (project, issue, attachment) {
+    const attachmentsMap = JSON.parse(params.loadValue('attachmentsMap') || '{}');
+    const link = attachmentsMap[attachment.id];
+    const response = fileConnection.getSync(link);
+    const headers = ghUtils().headersToMap(response.headers);
+    const mimeType = headers['content-type'];
+    return {
+      data: response.responseAsStream,
+      metadata: {
+        mimeType: mimeType
+      }
+    };
+  };
+
+  const getUsers = function () {
+    return [];
+  };
+
+  Object.assign(client, {
+    getProjects: getProjects.bind(this), // api
+    getProject: getProject.bind(this), // api
+    getLinkTypes: () => [],
+    getServerInfo: getServerInfo.bind(this), // api
+    getAttachmentContent: getAttachmentContent.bind(this),
+    getIssues: getIssues.bind(this), // api
+    getIssueUpdates: getIssueUpdates.bind(this),
+    getArticles: getArticles.bind(this),
+    getUsers: getUsers.bind(this),
+    prepareToImport: prepareToImport.bind(this), // api
+    getTimestampFormats: getTimestampFormats.bind(this), // api
+    $private: {
+      utils: GithubUtils(client, context, connection),
+      issueConverter: IssuesConverter(client, context),
+      historyConverter: HistoryConverter(client, context),
+      articlesConverter: ArticlesConverter(client, context),
+      articlesLoader: ArticlesLoader(client, context)
+    }
+  });
+  return client;
+};
+
+exports.Client = GitHubIssues;

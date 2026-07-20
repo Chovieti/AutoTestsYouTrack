@@ -1,0 +1,156 @@
+* ### System Properties: 
+* bundleProcess.logs.dir=/opt/youtrack/logs/internal/services/bundleProcess
+* database.backup.location=/opt/youtrack/backups
+* database.location=/opt/youtrack/data
+* exodus.memoryUsagePercentage=10
+* file.encoding=UTF-8
+* file.separator=/
+* java.awt.headless=true
+* java.class.path=launcher/lib/app-wrapper/youtrack-wrapper.jar
+* java.class.version=65.0
+* java.home=/usr/lib/jvm/java-21-amazon-corretto.x86_64
+* java.io.tmpdir=/opt/youtrack/temp/internal/services/bundleProcess
+* java.library.path=/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib
+* java.runtime.name=OpenJDK Runtime Environment
+* java.runtime.version=21.0.11+10-LTS
+* java.specification.name=Java Platform API Specification
+* java.specification.vendor=Oracle Corporation
+* java.specification.version=21
+* java.vendor=Amazon.com Inc.
+* java.vendor.url=https://aws.amazon.com/corretto/
+* java.vendor.url.bug=https://github.com/corretto/corretto-21/issues/
+* java.vendor.version=Corretto-21.0.11.10.1
+* java.version=21.0.11
+* java.version.date=2026-04-21
+* java.vm.compressedOopsMode=32-bit
+* java.vm.info=mixed mode, sharing
+* java.vm.name=OpenJDK 64-Bit Server VM
+* java.vm.specification.name=Java Virtual Machine Specification
+* java.vm.specification.vendor=Oracle Corporation
+* java.vm.specification.version=21
+* java.vm.vendor=Amazon.com Inc.
+* java.vm.version=21.0.11+10-LTS
+* javax.xml.accessExternalDTD=
+* javax.xml.accessExternalSchema=
+* javax.xml.accessExternalStylesheet=
+* jdk.debug=release
+* jetbrains.gap.pojo.shortClassNames=true
+* jetbrains.http.request.header.buffer.size=102400
+* jetbrains.http.response.header.buffer.size=102400
+* jetbrains.hub.admin.skip=true
+* jetbrains.hub.logStorageAllowed=true
+* jetbrains.mps.webr.doNotCloseGlobalScopeOnLastLocalScopeClose=false
+* jetbrains.youtrack.backup.hubDatabaseLocation=/opt/youtrack/data/hub
+* jetbrains.youtrack.baseUrl=http://localhost:8080
+* jetbrains.youtrack.confLocation=/opt/youtrack/conf
+* jetbrains.youtrack.installation-dir=/opt/youtrack
+* jetbrains.youtrack.installation-type=BUNDLE
+* jetbrains.youtrack.logDir=/opt/youtrack/logs/youtrack
+* jetbrains.youtrack.ring.configurator.internalUrl=http://127.0.0.1:8080/bundle/backend
+* jetbrains.youtrack.ring.configurator.uri=/bundle/admin
+* jetbrains.youtrack.ring.enabled=true
+* jetbrains.youtrack.ring.service.id=d5696527-3adc-49e4-b0e8-ddea456587ad
+* jetbrains.youtrack.ring.service.secret=*******
+* jetbrains.youtrack.ring.url=http://127.0.0.1:8080/hub
+* jetbrains.youtrack.singleTierApp=true
+* jetbrains.youtrack.ssl.trustStorePassword=OAyErpMbDy
+* jetbrains.youtrack.ssl.trustStorePath=/opt/youtrack/conf/internal/keystore.jks
+* jetbrains.youtrack.standalone.host=0.0.0.0
+* jetbrains.youtrack.standalone.port=8080
+* jetbrains.youtrack.statistics.enabled=false
+* jetty.git.hash=8f1440587e9e4ae7db3d74cf205643f3d707148d
+* jl.home=/opt/youtrack
+* jl.service=YouTrack
+* launcher.app.conf.dir=/opt/youtrack/conf
+* launcher.app.extra.lib.dirs=/alpn/1.9/
+* launcher.app.home=/opt/youtrack
+* launcher.app.name=YouTrack
+* launcher_app_file_name=youtrack
+* launcher_console_log_level=INFO
+* launcher_log_file_name=youtrack-wrapper.log
+* launcher_log_prefix=
+* launcher_logs_dir=/opt/youtrack/logs/
+* line.separator=
+
+* log4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector
+* native.encoding=UTF-8
+* org.eclipse.jetty.server.Request.maxFormContentSize=5000000
+* org.eclipse.jetty.server.Request.maxFormKeys=10000
+* os.arch=amd64
+* os.name=Linux
+* os.version=6.12.54-linuxkit
+* path.separator=:
+* root.bundle.logs.dir=/opt/youtrack/logs
+* service.youtrack.bundledin=bundleProcess
+* spring.profiles.active=xodus
+* stderr.encoding=UTF-8
+* stdout.encoding=UTF-8
+* sun.arch.data.model=64
+* sun.boot.library.path=/usr/lib/jvm/java-21-amazon-corretto.x86_64/lib
+* sun.cpu.endian=little
+* sun.io.unicode.encoding=UnicodeLittle
+* sun.java.command=launcher/lib/app-wrapper/youtrack-wrapper.jar AppStarter com.jetbrains.bundle.bootstrap.Bundle
+* sun.java.launcher=SUN_STANDARD
+* sun.jnu.encoding=UTF-8
+* sun.management.compiler=HotSpot 64-Bit Tiered Compilers
+* user.dir=/opt/youtrack
+* user.home=/home/jetbrains
+* user.language=en
+* user.name=jetbrains
+* user.timezone=UTC
+* ### End of System Properties.
+* 
+* ### Environment variables: 
+* FJ_JAVA_EXEC=/usr/lib/jvm/java-21-amazon-corretto/bin/java
+* HOME=/home/jetbrains
+* HOSTNAME=4e8bdfd49ea0
+* JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto
+* JETBRAINS_YOUTRACK_OCR_ENABLED=true
+* JETBRAINS_YOUTRACK_OCR_TRAINEDDATAPATH=/opt/youtrack/image-recognition/tessdata
+* JL_JAVA_PROPERTIES=-Dlauncher.app.home=/opt/youtrack -Dlauncher.app.conf.dir=/opt/youtrack/conf -Dlauncher.app.name=YouTrack
+* JL_LAUNCHER_OPTS=-ea -Xmx10m -XX:+HeapDumpOnOutOfMemoryError -XX:+UseSerialGC -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=32m
+* LANG=C.UTF-8
+* OLDPWD=/opt/youtrack
+* PACKAGES_OCR_FILE_URL=https://packages.jetbrains.team/files/p/yt/files/ocr/tessdata.tar.gz
+* PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* PWD=/opt/youtrack
+* SHLVL=0
+* TERM=xterm
+* _=/usr/lib/jvm/java-21-amazon-corretto/bin/java
+* ### End of Environment Variables.
+* 
+* Output of command [[uname, -a]]: Linux 4e8bdfd49ea0 6.12.54-linuxkit #1 SMP PREEMPT_DYNAMIC Tue Nov  4 21:39:03 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+* Can not execute command [[free]]: Error executing command [free]: Cannot run program "free" (in directory "/opt/youtrack"): Exec failed, error: 2 (No such file or directory) 
+* Output of command [[df]]: Filesystem           1K-blocks      Used Available Use% Mounted on
+overlay               61202244   4425000  53635920   8% /
+tmpfs                    65536         0     65536   0% /dev
+shm                      65536         0     65536   0% /dev/shm
+/dev/vda1             61202244   4425000  53635920   8% /etc/hosts
+/run/host_mark/Users 976557744 194152272 782405472  20% /opt/youtrack/data
+tmpfs                  4012864         0   4012864   0% /proc/acpi
+tmpfs                  4012864         0   4012864   0% /sys/firmware
+* Output of command [[/bin/sh, -c, ulimit -a]]: real-time non-blocking time  (microseconds, -R) unlimited
+core file size              (blocks, -c) 0
+data seg size               (kbytes, -d) unlimited
+scheduling priority                 (-e) 0
+file size                   (blocks, -f) unlimited
+pending signals                     (-i) 31329
+max locked memory           (kbytes, -l) unlimited
+max memory size             (kbytes, -m) unlimited
+open files                          (-n) 1048576
+pipe size                (512 bytes, -p) 8
+POSIX message queues         (bytes, -q) 819200
+real-time priority                  (-r) 0
+stack size                  (kbytes, -s) 8192
+cpu time                   (seconds, -t) unlimited
+max user processes                  (-u) unlimited
+virtual memory              (kbytes, -v) unlimited
+file locks                          (-x) unlimited
+* Output of command [[hostname]]: 4e8bdfd49ea0
+* Output of command [[hostname, -f]]: 4e8bdfd49ea0
+* Output of command [[id, -a]]: uid=13001(jetbrains) gid=13001(jetbrains) groups=13001(jetbrains)
+memory              (kbytes, -v) unlimited
+file locks                          (-x) unlimited
+* Output of command [[hostname]]: 58c73b6a4f10
+* Output of command [[hostname, -f]]: 58c73b6a4f10
+* Output of command [[id, -a]]: uid=13001(jetbrains) gid=13001(jetbrains) groups=13001(jetbrains)

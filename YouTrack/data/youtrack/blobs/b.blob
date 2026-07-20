@@ -1,0 +1,635 @@
+UU/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const gitlabIssueConverter = require('./gitlab-issue-converter').gitlabIssueConverter;
+const contextUtils = require('@jetbrains/youtrack-scripting-api/context-utils');
+const connection = require('./gitlab-connection');
+const utils = require('./gitlab-utils');
+
+const projectsMap = {projectsWithWiki: [], projectsEpics: {}, projectGroups: {}, groups: {}};
+const attachmentsMap = {};
+let usersMap = {};
+let articlesProcessedForProject = {};
+let articlesStorage = [];
+let isPaid;
+let currentUser = '';
+const articlesCounter = utils.counter;
+
+//https://docs.gitlab.com/ee/api/group_wikis.html
+const GITLAB_GROUP_WIKI_MIN_VERSION = 135;
+let currentVersion;
+let isGroupWikiSupported = false;
+
+function GitLabIssues(context) {
+  const ctxAccess = contextUtils.ContextAccess(context);
+  const epicWebLinks = JSON.parse(ctxAccess.getParam('epicWebLinks') || '{}');
+  const http = connection.makeHttpConnection(ctxAccess);
+  const loadJSON = connection.loadJsonFactory(http, ctxAccess);
+  const isPublic = ctxAccess.getParam('isPublicGitlabProject') === 'true';
+
+    function getElementsPaginated(projectId, issueIid, type) {
+      //for epic* types projectId and issueIid used for group_id and epic_iid respectively
+      const URIs = {
+        'comments': `/projects/${projectId}/issues/${issueIid}/notes`,
+        'epics': `/groups/${projectId}/epics`,
+        'epicIssues': `/groups/${projectId}/epics/${issueIid}/issues`,
+        //for comments epic.id is used, not iid
+        'epicComments': `/groups/${projectId}/epics/${issueIid}/notes`,
+        'users': '/users',
+        'projects': '/projects',
+        'projectsWiki': `/projects/${projectId}/groups`
+      };
+      let URI = URIs[type];
+      let page = 1;
+      const perPage = 100;
+      const query = {
+        'page': page.toString(),
+        'per_page': perPage.toString(),
+        'sort': 'asc'
+      };
+      let result = [];
+
+      function getElementsPerPage() {
+        const tempElements = loadJSON(URI, query);
+        if (tempElements.length) {
+          result = [...result, ...tempElements];
+          page++;
+          query.page = page.toString();
+          getElementsPerPage();
+        }
+
+        return result;
+      }
+
+      return getElementsPerPage();
+    }
+
+    function getUsersData() {
+      const users = getElementsPaginated(null, null, 'users');
+      const result = {};
+      users.forEach(user => {
+        if (!result.hasOwnProperty(user.id)) {
+          result[user.id] = {
+            id: user.id,
+            name: user.username,
+            email: user.email || user.public_email || null,
+            fullName: user.name,
+            type: 'user',
+            banned: user.state !== 'active'
+          };
+        }
+      });
+      return result;
+    }
+
+    function getUserDetails(userId) {
+      let userDetails;
+      if (usersMap.hasOwnProperty(userId)) {
+        userDetails = usersMap[userId];
+      } else {
+        const tempUserData = loadJSON(`/users/${userId}`);
+        userDetails = {
+          id: tempUserData.id,
+          name: tempUserData.username,
+          fullName: tempUserData.name,
+          email: tempUserData.email || tempUserData.public_email || null,
+          banned: tempUserData.state !== 'active',
+          type: 'user'
+        };
+        //saving a user to map
+        usersMap[userDetails.id] = userDetails;
+      }
+
+      return userDetails;
+    }
+
+    function getProjectIdEncoded(projectId) {
+      return encodeURIComponent(connection.removedTrailingSlash(projectId));
+    }
+
+    function getEpicDetails(project) {
+      const namespacePath = project.namespace.id;
+      //saving all the projects of the epic to set its proper visibility
+      const selectedProjects = JSON.parse(ctxAccess.getParam('projectsToImport')).map(project => project.name);
+      const epicProjectNames = loadJSON(`/groups/${namespacePath}/projects`).map(project => project.name_with_namespace).filter(el => selectedProjects.includes(el));
+      return getElementsPaginated(namespacePath, null, 'epics').filter(epic => epic.group_id === namespacePath).map(epic => {
+        epic.children = getElementsPaginated(namespacePath, epic.iid, 'epicIssues').map(child => child.id);
+        epic.comments = getElementsPaginated(namespacePath, epic.id, 'epicComments').filter(note => !note.system);
+        epic.project_names = epicProjectNames;
+        //preparing attachments
+        epic = prepareAttachments(epic, project.id);
+        return epic;
+      });
+    }
+
+    function prepareToImport() {
+      //initializing paging for issues
+      ctxAccess.setParam('page', '1');
+      ctxAccess.setParam('project', '');
+
+      //setting current user to context, used only for Monitoring project without owner provided
+      const tempCurrentUser = loadJSON('/user');
+      currentUser = {
+        id: tempCurrentUser.id,
+        name: tempCurrentUser.username,
+        fullName: tempCurrentUser.name,
+        email: tempCurrentUser.email || tempCurrentUser.public_email,
+        type: 'user'
+      };
+
+      //checking if group wiki is supported
+      currentVersion = utils.extractGitLabVersion(loadJSON('/version').version);
+      isGroupWikiSupported = currentVersion >= GITLAB_GROUP_WIKI_MIN_VERSION;
+      console.log(`Group wiki supported ${isGroupWikiSupported}`);
+
+      //getting the license installed only for standalone installations
+      if (!isPublic) {
+        //getting users' data(used for emails only tbh)
+        usersMap = getUsersData();
+      }
+    }
+
+    function getServerInfo() {
+      const result = http.getSync('/api/v4/version');
+      //throw Error if the host is not accessible to YouTrack server
+      if (!result.headers) {throw 'Cannot connect to the host specified. Please check your network connection';}
+      //checking is the response was in expected JSON format
+      const contentTypeHeader = utils.getContentTypeHeaderValue(result);
+      if (!contentTypeHeader.includes('application/json')) {throw `The server did not return expected JSON. The response type was ${contentTypeHeader}. Please check the URL entered`;}
+
+      const serverTimeHeader = result.headers.filter(h => h.name.toLowerCase() === 'date')[0];
+      const resJSON = JSON.parse(result.response);
+      return {
+        version: resJSON.version,
+        time: new Date(serverTimeHeader.value).toISOString()
+      };
+    }
+
+    function getProjects() {
+      if (isPublic) {
+        //getting numeric project id for gitlab.com projects
+        const urlProject = JSON.parse(ctxAccess.getParam('urlProjects'))[0];
+        const project = loadJSON(`/projects/${getProjectIdEncoded(urlProject.id)}`);
+        return [{
+          id: project.id.toString(),
+          name: utils.projectNamesWhiteSpacesRemover(project.name_with_namespace),
+          key: project.path_with_namespace
+        }];
+      } else {
+        return  getElementsPaginated(null, null, 'projects')
+                .filter(project => project.issues_enabled)
+                .map(project => {
+                  return {
+                    id: project.id,
+                    name: utils.projectNamesWhiteSpacesRemover(project.name_with_namespace),
+                    key: project.path_with_namespace ?? project.key
+                  };
+                });
+      }
+    }
+    function getProject(currentProject) {
+      const project = loadJSON(`/projects/${currentProject.id}`);
+      //updating key and name fields for forked projects
+      const teamUsers = loadJSON(`/projects/${project.id}/users`);
+      const teamGroups = loadJSON(`/projects/${project.id}/groups`);
+      const milestones = loadJSON(`/projects/${project.id}/milestones`);
+
+      //initiating attachmentsMap for the project
+      attachmentsMap[project.id] = [];
+      projectsMap[project.id] = project.path_with_namespace;
+      //a project's owner differs from the project's relation
+      const isGroupProject = project.namespace.kind === 'group';
+
+      //checking license installed
+      //https://docs.gitlab.com/ee/api/epic_issues.html
+      if (isPaid === undefined && isGroupProject) {
+        const result = http.getSync(`/api/v4/groups/${project.namespace.id}/epics`);
+        isPaid = result.code !== 403 && result.code !== 404;
+        console.log(`License installed ${isPaid}`);
+      }
+
+      //saving ancestor groups for this project if group wiki is supported
+      if (isPaid && isGroupProject && isGroupWikiSupported) {
+        const projectGroups = getElementsPaginated(project.id,null,'projectsWiki');
+        projectsMap.projectGroups[project.id] = projectGroups;
+        projectGroups.forEach(group => {
+          if (!projectsMap.groups.hasOwnProperty(group.id)) {
+            projectsMap.groups[group.id] = {};
+            projectsMap.groups[group.id]['isWikiProcessed'] = false;
+          }
+        });
+      }
+
+      //saving projects with epics, its epics and saving their children
+      if (isGroupProject && isPaid) {
+        projectsMap.projectsEpics[project.id] = {};
+        projectsMap.projectsEpics[project.id].epics = getEpicDetails(project);
+      }
+
+      // JT-81627
+      const getProjectLead = () => {
+        try {
+          if (currentProject && currentProject.key === 'Monitoring') {
+            return currentUser;
+          }
+          if (isGroupProject) {
+            try {
+              return project.creator_id ? getUserDetails(project.creator_id) : currentUser;
+            } catch (error) {
+              console.error('Error getting project creator details:', error);
+              return currentUser;
+            }
+          }
+          if (project.owner && project.owner.id) {
+            return getUserDetails(project.owner.id);
+          }
+          return currentUser;
+        } catch (error) {
+          console.error('Error determining project owner:', error);
+          return currentUser;
+        }
+      };
+      const lead = getProjectLead();
+
+      if (project.wiki_enabled) {
+        projectsMap.projectsWithWiki.push(project.id);
+      }
+
+      const defaultFields = {
+        id: project.id,
+        name: utils.projectNamesWhiteSpacesRemover(project.name_with_namespace),
+        key: project.path_with_namespace,
+        description: project.description,
+        archived: project.archived,
+        lead,
+        teamUsers: teamUsers.map(user => getUserDetails(user.id)),
+        teamGroups: teamGroups.map(group => {
+          return {
+            id: group.id.toString(),
+            name: group.name
+          };
+        }),
+        adminUsers: [lead],
+        fields: [
+          {
+            id: 'State',
+            name: 'State',
+            multiValue: false,
+            type: 'state',
+            values: [
+              {
+                name: 'Open',
+                isResolved: false
+              },
+              {
+                name: 'Closed',
+                isResolved: true
+              }
+            ]
+          },
+          {
+            id: 'Assignee',
+            name: 'Assignee',
+            multiValue: false,
+            type: 'user'
+          },
+          {
+            id: 'Type',
+            name: 'Type',
+            multiValue: false,
+            type: 'enum',
+            values: [
+              {
+                name: 'Issue'
+              },
+              {
+                name: 'Incident'
+              }
+            ]
+          },
+          {
+            id: 'Estimation',
+            name: 'Estimation',
+            multiValue: false,
+            type: 'period'
+          },
+          {
+            id: 'Spent time',
+            name: 'Spent time',
+            multiValue: false,
+            type: 'period'
+          },
+          {
+            id: 'Milestone',
+            name: 'Milestone',
+            multiValue: false,
+            type: 'version',
+            values: milestones.map(milestone => {
+              return {
+                name: milestone.title,
+                description: milestone.description,
+                releaseDate: milestone.due_date,
+                released: milestone.state === 'closed'
+              };
+            })
+          }
+        ]
+      };
+
+      if (isPaid) {
+        defaultFields.fields.push({
+          id: 'Weight',
+          name: 'Weight',
+          multiValue: false,
+          type: 'integer'
+        },
+                {
+                  id: 'Start Date',
+                  name: 'Start Date',
+                  multiValue: false,
+                  type: 'date'
+                },
+                {
+                  id: 'Health Status',
+                  name: 'Health Status',
+                  multiValue: false,
+                  type: 'enum'
+                });
+        //setting assignee to multivalued field and adding 'Epic' type
+        defaultFields.fields.forEach((field, index) => {
+          if (field.name === 'Assignee') {
+            defaultFields.fields[index].multiValue = true;
+          } else if (field.name === 'Type') {
+            defaultFields.fields[index].values.push({name: 'Epic'});
+          }
+        });
+      }
+      return defaultFields;
+    }
+
+  function getUsers(group, skip, top) {
+    if (group.id !== utils.allUsersGroup.id && !group.name.includes('Team')) {
+      const query = {
+        'per_page': top.toString(),
+        'page': (skip / top).toString()
+      };
+      try {
+        const users = loadJSON(`/groups/${group.id}/members`, query);
+        return users.map(user => getUserDetails(user.id));
+      } catch (error) {
+        if (error && (error.statusCode === 403 || (typeof error === 'string' && error.includes('403')))) {
+          const enhancedError = new Error(`403 loading group members for  ${group.name}. ` +
+              'To access group members, you need a token with group-level permissions, not just project-level. ');
+          enhancedError.statusCode = 403;
+          throw enhancedError;
+        } else {
+          console.error(`Error loading group members for ${group.name}:`, error);
+          throw error;
+        }
+      }
+    }
+    return [];
+  }
+
+    function getAttachmentContent(project, issue, attachment) {
+      try {
+        const url = attachmentsMap[project.id].find(el => el.alt === attachment.id).uri;
+        const res = http.getSync(url);
+        return {
+          data: res.responseAsStream,
+          metadata: {
+            mimeType: utils.getContentTypeHeaderValue(res)
+          }
+        };
+      }  catch (e) {
+        console.error('Failed to download attachment :(', e.message);
+        return {
+          data: 'VW5mb3J0dW5hdGVseSBHaXRsYWIgcmV0dXJuZWQgdGhpcyBmaWxlIGFzIGVtcHR5',
+          metaData: {
+            mimeType: 'text/plain'
+          }
+        };
+      }
+    }
+
+    function prepareAttachments(element, root) {
+      //defaults for issue
+      let relation = 'issue';
+      let namespace = projectsMap[root];
+      //for epics
+      if (element.hasOwnProperty('parent_id')) {
+        relation = 'epic';
+        namespace = projectsMap[root].split('/')[0];
+      }
+      //parsing an issue's attachment if it is not null
+      if (element.description) {
+        attachmentsMap[root] = [...attachmentsMap[root], ...utils.prepareAttachments(element.description, namespace, relation, element.id, null, root)];
+      }
+      element.comments.forEach(comment => {
+        attachmentsMap[root] = [...attachmentsMap[root], ...utils.prepareAttachments(comment.body, namespace, `${relation}_comment`, comment.id, element.id, root)];
+      });
+      //fill dat attachments
+      element.attachments = attachmentsMap[root].filter(attach => (attach.relation === relation && attach.id === element.id) || (attach.relation === `${relation}_comment` && attach.iid === element.id));
+      return element;
+    }
+
+    function getIssueUpdates(project, after, updatedAfter, top) {
+      let count = 0;
+      let gitLabIssues;
+
+      //getting data from the context
+      let page = parseInt(ctxAccess.getParam('page'));
+      let currentProject = ctxAccess.getParam('project');
+
+      if (currentProject !== project.name) {
+        if (currentProject) {
+          page = 1;
+          ctxAccess.setParam('page', page.toString());
+        }
+        currentProject = project.name;
+        ctxAccess.setParam('project', currentProject);
+      }
+
+      const query = {
+        'scope': 'all',
+        'order_by': 'created_at',
+        'sort': 'asc',
+        'per_page': top.toString(),
+        'page': page.toString()
+      };
+      if (updatedAfter) {
+        query.order_by = 'updated_at';
+        query.updated_after = updatedAfter;
+      }
+
+      let tempIssues = loadJSON(`/projects/${project.id}/issues`, query);
+
+      gitLabIssues = tempIssues.map(issue => {
+        issue.project_name = currentProject;
+        //getting an issue's comments created by user
+        issue.comments = getElementsPaginated(project.id, issue.iid, 'comments').filter(note => !note.system);
+        issue.links = loadJSON(`/projects/${project.id}/issues/${issue.iid}/links`);
+        //getting events
+        issue.history = [];
+        issue.history = [...issue.history, ...loadJSON(`/projects/${project.id}/issues/${issue.iid}/resource_milestone_events`)];
+        issue.history = [...issue.history, ...loadJSON(`/projects/${project.id}/issues/${issue.iid}/resource_state_events`)];
+        if (isPaid) {issue.history = [...issue.history, ...loadJSON(`/projects/${project.id}/issues/${issue.iid}/resource_weight_events`)];}
+        //processing attachments
+        issue = prepareAttachments(issue, project.id);
+        return issue;
+      });
+
+      page++;
+      ctxAccess.setParam('page', page.toString());
+      //appending epics only during the last iteration
+      if (gitLabIssues.length < top) {
+        //checking if the project has epics and saving them to a returned array
+        if (projectsMap.projectsEpics.hasOwnProperty(project.id)) {
+          gitLabIssues = [...gitLabIssues, ...projectsMap.projectsEpics[project.id].epics];
+          saveEpicWebLinks(project.id);
+        }
+      }
+
+      count += gitLabIssues.length;
+      console.log('Loaded ' + count + ' issues from ' + project.name);
+      const convertedIssues = [];
+      for (const issue of gitLabIssues) {
+        try {
+          convertedIssues.push(gitlabIssueConverter(issue, usersMap, isPaid, currentUser));
+        } catch (error) {
+          console.log('Warning: Failed to convert issue #' + issue.iid + ' (ID: ' + issue.id + ') from project ' + project.name + '. Error: ' + error.message);
+        }
+      }
+      return convertedIssues;
+    }
+
+    function saveEpicWebLinks(projectId) {
+      projectsMap.projectsEpics[projectId].epics.forEach((epic) => {
+        const epicKey = projectId + '-' + epic.iid;
+        epicWebLinks[epicKey] = epic['web_url'];
+      });
+      ctxAccess.setParam('epicWebLinks', JSON.stringify(epicWebLinks));
+    }
+
+    function getIssues(project, after, top) {
+      return getIssueUpdates(project, after, null, top);
+    }
+
+    const getArticles = (project) => {
+      let result = [];
+      let articlesCut = [];
+
+      //if the current project does not have wiki module enabled skip its processing
+      if (projectsMap.projectsWithWiki.includes(parseInt(project.id))) {
+        //as there is no pagination for wikis, we have to deal with it ourselves
+        if (articlesProcessedForProject[project.id]) {
+          articlesCut = articlesStorage.splice(50);
+          articlesStorage = [...articlesCut];
+        } else {
+          articlesProcessedForProject[project.id] = true;
+          articlesCut = loadJSON(`/projects/${project.id}/wikis`, {'with_content': '1'});
+          //pushing group's wiki to the main cut
+          if (projectsMap.projectGroups.hasOwnProperty(project.id)) {
+            projectsMap.projectGroups[project.id].forEach(group => {
+              if (!projectsMap.groups[group.id]['isWikiProcessed']) {
+                const groupWiki = loadJSON(`/groups/${group.id}/wikis`, {'with_content': '1'}).map(el => {
+                  el.isGroupArticle = true;
+                  el.groupName = group.name;
+                  el.groupPath = group.full_path;
+                  return el;
+                });
+                projectsMap.groups[group.id]['isWikiProcessed'] = true;
+                articlesCut = [...articlesCut, ...groupWiki];
+              }
+            });
+          }
+          articlesStorage = [...articlesCut];
+        }
+        result = articlesCut.map(article => {
+          let counter = articlesCounter();
+          const relation = article.isGroupArticle ? 'groupArticle' : 'article';
+          const namespace = article.isGroupArticle ? article.groupPath : projectsMap[project.id];
+          console.log('project.id ' + project.id + ' article ' + article.slug);
+          attachmentsMap[project.id] = [...attachmentsMap[project.id], ...utils.prepareAttachments(article.content, namespace, relation, counter, null, project.id)];
+          const articleAttachments = attachmentsMap[project.id].filter(attach => attach.relation === relation && attach.id === counter);
+          //fixing root article title
+          if (article.title === 'home') {
+            article.title = article.isGroupArticle ? `${article.groupName} ${article.title}` : 'Home';
+            article.slug = 'Home';
+          }
+
+          let date = new Date();
+          const articlePrepared = {
+            id: article.isGroupArt–icle ? `${article.groupPath}_${article.slug}` : `${project.id}_${article.slug}`,
+            key: counter,
+            fields: {
+              summary: article.title,
+              author: currentUser,
+              content: utils.bodyParser(article.content, project.id),
+              created: date.toISOString(),
+              updated: date.toISOString(),
+              parent: article.isGroupArticle ? `${article.groupPath}_${utils.extractArticleParent(article.slug)}` : `${project.id}_${utils.extractArticleParent(article.slug)}`,
+              attachments: articleAttachments.map(attachment => {
+                return {
+                  id: attachment.alt,
+                  created: date.toISOString(),
+                  filename: attachment.filename,
+                  author: currentUser
+                };
+              })
+            }
+          };
+          //appending not imported files to an article's content
+          const filesNotImported = utils.filterFiles(articleAttachments);
+          if (filesNotImported.length) {
+            articlePrepared.fields.content = utils.appendMissedFiles(articlePrepared.fields.content, filesNotImported);
+          }
+          return articlePrepared;
+        });
+      }
+      return result;
+
+    };
+
+    return {
+      prepareToImport,
+      getServerInfo,
+      getProjects,
+      getProject,
+      getUsers,
+      getIssues,
+      getIssueUpdates,
+      getAttachmentContent,
+      getArticles,
+      getTimestampFormats: () => {
+        return ['yyyy-MM-dd\'T\'HH:mm:ss.SSSX', 'yyyy-MM-dd\'T\'HH:mm:ssX', 'yyyy-MM-dd\'T\'HH:mmX', 'yyyy-MM-dd'];
+      },
+      getLinkTypes: () => [{
+        id: '1',
+        name: 'Relates',
+        sourceToTarget: 'relates to',
+        targetToSource: 'relates to'
+      },
+      {
+        id: '2',
+        name: 'Blocks',
+        sourceToTarget: 'blocks',
+        targetToSource: 'is blocked by'
+      }]
+    };
+}
+
+exports.Client = GitLabIssues;

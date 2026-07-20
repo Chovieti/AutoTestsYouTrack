@@ -1,0 +1,351 @@
+*/**
+ * Copyright JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+const converterFactory = require('./space-issue-converter');
+const contextUtils = require('@jetbrains/youtrack-scripting-api/context-utils');
+const connection = require('./space-connection');
+const dateTime = require('@jetbrains/youtrack-scripting-api/date-time');
+const Article = require('./space-article-converter');
+const Context = require('./space-context');
+const Users = require('./space-users');
+const utils = require('./space-utils');
+
+const ISSUES_FIELDS = 'data(id,createdBy(name,details(user(id))),assignee(id),dueDate,creationTime,number,status(name),tags(name,parent),title,description,channel(id,lastMessage(time),totalMessages),attachments(details(id,name,filename)),customFields),next';
+const COMMENTS_FIELDS = 'messages(id,author(name,details(user(id))),text,details(id,className),created,attachments(details(id,name,filename))),nextStartFromDate';
+
+//Settings section
+const IMPORT_ISSUE_MENTIONS_AS_RELATED = false;
+
+function SpaceClient(context) {
+
+  const ctxAccess = contextUtils.ContextAccess(context);
+  const http = connection.makeHttpConnection(ctxAccess);
+  const attachmentHttp = connection.makeHttpConnection(ctxAccess, true);
+  const GET = connection.GETFactory(http, ctxAccess);
+
+  const importState = {
+    settings: {
+      url: connection.getUrl(ctxAccess),
+      importMentionedIssues: IMPORT_ISSUE_MENTIONS_AS_RELATED
+    },
+    knownIds: [],
+    currentProject: null,
+    skip: 0,
+    startProject: function (project) {
+      if (importState.currentProject && project.id !== importState.currentProject.id) {
+        importState.knownIds = [];
+        importState.duplicatedIssues = [];
+        importState.skip = 0;
+      }
+      importState.currentProject = project;
+    }
+  };
+
+  const converter = converterFactory(GET, importState);
+
+  function prepareToImport() {
+    Context.setContext(context);
+  }
+
+  function getProjects() {
+    const rawProjects = [];
+    let stop = false;
+    let skip = 0;
+    while (!stop) {
+      const projects = GET('/projects', {
+        '$fields': 'data(id,description,key,name,archived)',
+        '$skip' : skip.toString(),
+        '$top' : '100'
+      }).data;
+      rawProjects.push(...projects);
+      stop = projects.length < 100;
+      skip += 100;
+    }
+    return rawProjects.map(project => {
+      return {
+        id: project.id,
+        name: project.name,
+        key: project.key.key,
+        description: project.description,
+        archived: project.archived
+      };
+    });
+  }
+
+  function getProject(pr) {
+    const project = GET(`/projects/id:${pr.id}`, {
+      '$fields': 'id,description,key,name,archived,team'
+    });
+
+    Context.setValue('projectKey', project.key.key);
+
+    const statuses = GET(`/projects/id:${pr.id}/planning/issues/statuses`);
+    return {
+      id: project.id,
+      name: project.name,
+      key: project.key.key,
+      description: project.description,
+      archived: project.archived,
+      teamGroups: getTeam(project),
+      fields: [{
+        id: 'State',
+        name: 'State',
+        multiValue: false,
+        type: 'state',
+        values: statuses.map(s => {
+          return {
+            name: s.name,
+            isResolved: s.resolved,
+            archived: s.archived
+          };
+        })
+      },
+      {
+        id: 'Assignee',
+        name: 'Assignee',
+        multiValue: false,
+        type: 'user'
+      }
+      ]
+    };
+  }
+
+  function getTeam(project) {
+    let teams = [];
+    if (project.team) {
+      teams = [{
+        id: project.team.id,
+        name: project.team.name
+      }];
+    }
+    return teams;
+  }
+
+  function getUsers(group, skip, top) {
+    if (group.id !== utils.allUsersGroup.id) {
+      const query = {
+        '$skip': skip.toString(),
+        '$top': top.toString()
+      };
+      const usersIds = GET(`/team-directory/profiles?teamId=${group.id}`, query).data.map(item => item.id);
+
+      return usersIds.map(userId => Users.getUser(GET, userId));
+    }
+    return [];
+  }
+
+  function getAttachmentContent(project, issue, attachment) {
+    console.log('Getting attachment content for ' + JSON.stringify(attachment));
+    let call = attachmentHttp.getSync(`/d/${attachment.id}?f=0`);
+    if (call.code === 302) {
+      let cdn = call.headers.filter((it) => it.name === 'location');
+      console.log('Attachment is located in CDN: ' + cdn);
+      return new http.Connection().getSync(cdn);
+    }
+    if (call.code === 404) {
+      console.log('Try to get file ${attachment.id} another way');
+      call = attachmentHttp.getSync(`/drive/files/${attachment.id}`);
+    }
+    return {
+      data: call.responseAsStream,
+      metadata: {
+        mimeType: connection.getContentTypeHeaderValue(call)
+      }
+    };
+  }
+
+  function getInitialRawIssues(project, after, top) {
+    console.log('Getting issue after: ' + (after ? after.id : ''));
+
+    let creationTimeFrom;
+    if (after) {
+      creationTimeFrom = GET(`/projects/id:${project.id}/planning/issues/id:${after.id}`, {'$fields': 'creationTime'}).creationTime.iso;
+    }
+
+    const knownIds = [...importState.knownIds];
+    const query = {
+      'sorting': 'CREATED',
+      'descending': 'false',
+      '$top': (2 * top).toString(),
+      '$fields': ISSUES_FIELDS
+    };
+    if (creationTimeFrom) {
+      query.creationTimeFrom = creationTimeFrom;
+    }
+    const spaceIssues = GET(`/projects/id:${project.id}/planning/issues`, query).data;
+    if (after) {
+      spaceIssues.shift();
+    }
+    return spaceIssues.filter(issue => {
+      if (knownIds.includes(issue.number)) {
+        console.log(`duplicated IDS from Space: ${issue.number}`);
+        return false;
+      }
+      knownIds.push(issue.number);
+      return true;
+    }).slice(0, top);
+  }
+
+  function getContinuousRawIssues(project, after, updatedAfter, top) {
+    console.log('Getting issues after: ' + (after ? after.id : ''));
+    let skip = 0;
+
+    let reversedRawIssues = [];
+    let stop = false;
+
+    const updatedAfterTimestamp = dateTime.parse(updatedAfter, 'yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', 'UTC0');
+    do {
+      const query = {
+        'sorting': 'UPDATED',
+        'descending': 'true',
+        '$top': '100',
+        '$skip': skip.toString(),
+        '$fields': ISSUES_FIELDS
+      };
+
+      const issues = GET(`/projects/id:${project.id}/planning/issues`, query).data;
+      if (!issues.length) {
+        stop = true;
+      }
+      const notProcessed = issues.filter((issue) => {
+        const time = (issue.channel.lastMessage || {}).time;
+        return time && time > updatedAfterTimestamp;
+      });
+      stop = notProcessed.length < top;
+      reversedRawIssues.push(...notProcessed);
+      skip = skip + 100;
+    } while (!stop);
+    const result = reversedRawIssues.reverse().slice(importState.skip, importState.skip + top);
+    importState.skip = importState.skip + top;
+    return result;
+  }
+
+  function getSpentTime(issueId) {
+    try {
+      const response = GET('/time-tracking/items', {
+        'subject': `issue:id:${issueId}`,
+        '$fields': 'data(duration),totalCount'
+      });
+      return response.data || [];
+    } catch (e) {
+      console.log(`Error fetching spent time for issue ${issueId}: ${e.message}`);
+      return [];
+    }
+  }
+
+  function processRawIssues(rawIssues) {
+    rawIssues.forEach(issue => {
+      let hasMoreComments = true;
+      let startFromDate = null;
+      const BATCH_SIZE = 50;
+      const allComments = [];
+      do {
+        const params = {
+          channel: `id:${issue.channel.id}`,
+          batchSize: BATCH_SIZE.toString(),
+          sorting: 'FromNewestToOldest',
+          '$fields': COMMENTS_FIELDS
+        };
+        if (startFromDate) {
+          params.startFromDate = startFromDate;
+        }
+        const tempComments = GET('/chats/messages/', params);
+        if (!tempComments) {
+          hasMoreComments = false;
+          break;
+        }
+        const filteredComments = (tempComments.messages || [])
+            .filter(comment => comment.details.className === 'M2TextItemContent');
+        allComments.push(...filteredComments);
+        if (tempComments.messages.length < BATCH_SIZE || !tempComments.nextStartFromDate) {
+          hasMoreComments = false;
+        }
+        else if (tempComments.nextStartFromDate?.iso) {
+          startFromDate = tempComments.nextStartFromDate.iso;
+        }
+        else {
+          hasMoreComments = false;
+        }
+      } while (hasMoreComments);
+      issue.comments = allComments;
+
+      const tempWatchers = GET(`/chats/channels/id:${issue.channel.id}/subscribers/users`, {
+        '$fields': 'data(id)',
+        'query': ''
+      });
+      if (!tempWatchers) {
+        issue.watchers = [];
+      } else {
+        issue.watchers = tempWatchers.data;
+      }
+      issue.spentTimeItems = getSpentTime(issue.id);
+    });
+
+    return rawIssues.map(issue => converter.toYouTrackIssue(issue)).filter(issue => issue !== null);
+  }
+
+  function getIssueUpdates(project, after, updatedAfter, top) {
+    importState.startProject(project);
+    const issues = getContinuousRawIssues(project, after, updatedAfter, top);
+    return processRawIssues(issues);
+  }
+
+  function getIssues(project, after, top) {
+    importState.startProject(project);
+    const issues = getInitialRawIssues(project, after, top);
+    return processRawIssues(issues);
+  }
+
+  function getArticles(project, after, top){
+    return Article.getConvertedArticles(GET, project, after, top);
+  }
+
+  return {
+    prepareToImport,
+    getProject,
+    getProjects,
+    getServerInfo: function () {
+      return {
+        version: '1',
+        time: new Date().toISOString()
+      };
+    },
+    getUsers,
+    getIssues,
+    getIssueUpdates,
+    getArticles,
+    getAttachmentContent,
+    getTimestampFormats: () => {
+      return ['yyyy-MM-dd\'T\'HH:mm:ss.SSS\'Z\'', 'yyyy-MM-dd\'T\'HH:mm:ss\'Z\'', 'yyyy-MM-dd\'T\'HH:mm\'Z\'', 'yyyy-MM-dd'];
+    },
+    getLinkTypes: () => [
+      {
+        id: '1',
+        name: 'Relates',
+        sourceToTarget: 'relates to',
+        targetToSource: 'relates to'
+      },
+      {
+        id: '2',
+        name: 'Subtask',
+        sourceToTarget: 'parent for',
+        targetToSource: 'subtask of'
+      }
+    ]
+  };
+}
+
+exports.Client = SpaceClient;
