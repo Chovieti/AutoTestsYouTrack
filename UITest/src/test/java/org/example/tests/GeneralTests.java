@@ -62,16 +62,17 @@ public class GeneralTests {
   public void tearDown() {
     log.info("Очистка после теста: удаление созданных задач");
     try {
-      for (String id : createdIds) {
+      while (!createdIds.isEmpty()) {
+        String id = createdIds.getLast();
         try {
           IssueManager.deleteIssue(id, BASE_URL);
           log.debug("Задача {} удалена", id);
+          createdIds.remove(id);
         } catch (AssertionError e) {
           log.error("Не удалось удалить задачу {}: {}", id, e.getMessage());
         }
       }
     } finally {
-      createdIds.clear();
       Selenide.closeWebDriver();
     }
   }
